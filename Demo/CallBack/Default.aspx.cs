@@ -13,10 +13,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Web;
 using System.Web.UI;
-using System.Web.UI.WebControls;
+using com.cloopen.CCPRestSDK;
 
 namespace CallBack
 {
@@ -26,22 +24,12 @@ namespace CallBack
         {
             string ret = null;
 
-            CCPRestSDK.CCPRestSDK api = new CCPRestSDK.CCPRestSDK();
-
-            bool isInit = api.init("sandboxapp.cloopen.com", "8883");
-            api.setSubAccount("", "", "", "");
 
             try
             {
-                if (isInit)
-                {
-                    Dictionary<string, object> retData = api.CallBack("", "", "", "", "");
-                    ret = getDictionaryData(retData);
-                }
-                else
-                {
-                    ret = "初始化失败";
-                }
+                var api = new CCPRestClient();
+                Dictionary<string, object> retData = api.CallBack("", "", "", "", "");
+                ret = getDictionaryData(retData);
             }
             catch (Exception exc)
             {
@@ -60,13 +48,13 @@ namespace CallBack
             {
                 if (item.Value != null && item.Value.GetType() == typeof(Dictionary<string, object>))
                 {
-                    ret += item.Key.ToString() + "={";
+                    ret += item.Key + "={";
                     ret += getDictionaryData((Dictionary<string, object>)item.Value);
                     ret += "};";
                 }
                 else
                 {
-                    ret += item.Key.ToString() + "=" + (item.Value == null ? "null" : item.Value.ToString()) + ";";
+                    ret += item.Key + "=" + (item.Value == null ? "null" : item.Value.ToString()) + ";";
                 }
             }
             return ret;

@@ -1,6 +1,8 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2012
+# Visual Studio 2013
+VisualStudioVersion = 12.0.30501.0
+MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Demo", "Demo", "{730A8C0F-FE85-4932-813A-687C81F05503}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SDK", "SDK", "{9E3B56DA-F36A-4F57-9D46-A8FBA4F06C82}"
@@ -26,6 +28,13 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SendTemplateSMS", "Demo\SendTemplateSMS\SendTemplateSMS.csproj", "{C71CE3BB-BFC1-4CFF-AD18-D4FAACE95BD0}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VoiceVerify", "Demo\VoiceVerifyCode\VoiceVerify.csproj", "{21264A3E-F914-4ADE-B5F0-1C1D5BB21BC2}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".nuget", ".nuget", "{DCC0F603-0ED1-46EC-8168-136E7ED485D7}"
+	ProjectSection(SolutionItems) = preProject
+		.nuget\NuGet.Config = .nuget\NuGet.Config
+		.nuget\NuGet.exe = .nuget\NuGet.exe
+		.nuget\NuGet.targets = .nuget\NuGet.targets
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -82,6 +91,7 @@ Global
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
+		{80326A65-5E30-4238-BD00-B9FD69A53B91} = {9E3B56DA-F36A-4F57-9D46-A8FBA4F06C82}
 		{79452D56-8729-4806-89B3-B537C11A33FB} = {730A8C0F-FE85-4932-813A-687C81F05503}
 		{458DB5B0-26C9-4B84-ABC5-4E9A96312F0A} = {730A8C0F-FE85-4932-813A-687C81F05503}
 		{A811034A-E6CB-49F1-827A-2093F805DEE6} = {730A8C0F-FE85-4932-813A-687C81F05503}
@@ -92,6 +102,5 @@ Global
 		{2E178203-F4C5-403D-BECD-5E72ED289BC6} = {730A8C0F-FE85-4932-813A-687C81F05503}
 		{C71CE3BB-BFC1-4CFF-AD18-D4FAACE95BD0} = {730A8C0F-FE85-4932-813A-687C81F05503}
 		{21264A3E-F914-4ADE-B5F0-1C1D5BB21BC2} = {730A8C0F-FE85-4932-813A-687C81F05503}
-		{80326A65-5E30-4238-BD00-B9FD69A53B91} = {9E3B56DA-F36A-4F57-9D46-A8FBA4F06C82}
 	EndGlobalSection
 EndGlobal
