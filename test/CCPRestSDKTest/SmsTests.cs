@@ -15,7 +15,7 @@ namespace CCPRestSDKTest {
             _outputter = output;
         }
         //　发送短信需要收费
-        [Fact]
+        //[Fact]
         public void SendTemplateSMSTest() {
             var config = new ConfigurationBuilder()
                 .SetBasePath(Directory.GetCurrentDirectory())
