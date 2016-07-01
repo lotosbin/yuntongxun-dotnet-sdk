@@ -15,8 +15,8 @@ namespace com.cloopen.CCPRestSDK {
 
         public SendTemplateSMSResult SendTemplateSMS(string to, string templateId, string[] strings) {
             Dictionary<string, object> retData = _ccpRestSdk.SendTemplateSMS(to, templateId, strings);
-            if (retData.ContainsKey("responseBody")) {
-                return JsonConvert.DeserializeObject<SendTemplateSMSResult>((string)retData["responseBody"]);
+            if (retData.Keys.Contains("resposeBody")) {
+                return JsonConvert.DeserializeObject<SendTemplateSMSResult>((string)retData["resposeBody"]);
             }
             return new SendTemplateSMSResult() {
                 statusCode = (string)retData["statusCode"],

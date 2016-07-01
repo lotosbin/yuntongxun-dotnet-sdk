@@ -8,10 +8,10 @@ using Xunit;
 using Xunit.Abstractions;
 
 namespace CCPRestSDKTest {
-    public class SmsTests {
+    public class CCPRestSDKTests {
         private readonly ITestOutputHelper _outputter;
 
-        public SmsTests(ITestOutputHelper output) {
+        public CCPRestSDKTests(ITestOutputHelper output) {
             _outputter = output;
         }
         //　发送短信需要收费
