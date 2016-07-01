@@ -30,6 +30,7 @@ namespace CCPRestSDK {
     public interface ILog {
         void Error(string message);
     }
+
     public class CCPRestSDK {
         private string m_restAddress = null;
         private string m_restPort = null;
@@ -808,7 +809,7 @@ namespace CCPRestSDK {
                 if (!string.IsNullOrEmpty(responseStr)) {
                     Dictionary<string, object> responseResult = new Dictionary<string, object>
                     {
-                        {"statusCode", "0"},
+                        {"statusCode", "00000"},
                         {"statusMsg", "成功"},
                         {"data", null}
                     };
