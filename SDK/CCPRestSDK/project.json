@@ -1,4 +1,5 @@
 {
+  "name": "com.cloopen.CCPRestSDKCore",
   "version": "1.0.0-*",
 
   "dependencies": {

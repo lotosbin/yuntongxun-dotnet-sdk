@@ -3,4 +3,13 @@ yuntongxun-net-sdk
 
 yuntongxun net sdk
 
-nuget intall-package com.cloopen.CCPRestSDK
+```
+intall-package com.cloopen.CCPRestSDK
+```
+
+
+
+# dotnet core version
+```
+Install-Package com.cloopen.CCPRestSDKCore
+```
