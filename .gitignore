@@ -174,3 +174,4 @@ UpgradeLog*.htm
 FakesAssemblies/
 *.nupkg
 .vs/
+/test/CCPRestSDKTest/appsettings.json

@@ -15,20 +15,22 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
+using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Reflection;
 using System.Text;
 using System.Xml;
 
-namespace CCPRestSDK
-{
-    enum EBodyType:uint
-    {
+namespace CCPRestSDK {
+    enum EBodyType : uint {
         EType_XML = 0,
         EType_JSON
     };
 
-    public class CCPRestSDK
-    {
+    public interface ILog {
+        void Error(string message);
+    }
+    public class CCPRestSDK {
         private string m_restAddress = null;
         private string m_restPort = null;
         private string m_mainAccount = null;
@@ -40,8 +42,8 @@ namespace CCPRestSDK
         private string m_appId = null;
         private bool m_isWriteLog = false;
 
-        private EBodyType m_bodyType = EBodyType.EType_XML;
-
+        private EBodyType m_bodyType = EBodyType.EType_JSON;
+        public ILog Log { get; set; }
         /// <summary>
         /// 服务器api版本
         /// </summary>
@@ -53,8 +55,7 @@ namespace CCPRestSDK
         /// <param name="serverIP">服务器地址</param>
         /// <param name="serverPort">服务器端口</param>
         /// <returns></returns>
-        public bool init(string restAddress, string restPort)
-        {
+        public bool init(string restAddress, string restPort) {
             this.m_restAddress = restAddress;
             this.m_restPort = restPort;
 
@@ -69,8 +70,7 @@ namespace CCPRestSDK
         /// </summary>
         /// <param name="accountSid">主帐号</param>
         /// <param name="accountToken">主帐号令牌</param>
-        public void setAccount(string accountSid, string accountToken)
-        {
+        public void setAccount(string accountSid, string accountToken) {
             this.m_mainAccount = accountSid;
             this.m_mainToken = accountToken;
         }
@@ -82,8 +82,7 @@ namespace CCPRestSDK
         /// <param name="subAccountToken">子帐号令牌</param>
         /// <param name="voipAccount">VoIP帐号</param>
         /// <param name="voipPassword">VoIP密码</param>
-        public void setSubAccount(string subAccountSid, string subAccountToken, string voipAccount, string voipPassword)
-        {
+        public void setSubAccount(string subAccountSid, string subAccountToken, string voipAccount, string voipPassword) {
             this.m_subAccount = subAccountSid;
             this.m_subToken = subAccountToken;
             this.m_voipAccount = voipAccount;
@@ -94,8 +93,7 @@ namespace CCPRestSDK
         /// 设置应用ID
         /// </summary>
         /// <param name="appId">应用ID</param>
-        public void setAppId(string appId)
-        {
+        public void setAppId(string appId) {
             this.m_appId = appId;
         }
 
@@ -103,20 +101,17 @@ namespace CCPRestSDK
         /// 日志开关
         /// </summary>
         /// <param name="enable">日志开关</param>
-        public void enabeLog(bool enable)
-        {
+        public void enabeLog(bool enable) {
             this.m_isWriteLog = enable;
         }
 
+        public string LogDirectoryPath { get; set; } = ".";
         /// <summary>
         /// 获取日志路径
         /// </summary>
         /// <returns>日志路径</returns>
-        public string GetLogPath()
-        {
-            string dllpath = System.Reflection.Assembly.GetExecutingAssembly().CodeBase;
-            dllpath = dllpath.Substring(8, dllpath.Length - 8);    // 8是 file:// 的长度
-            return System.IO.Path.GetDirectoryName(dllpath)+"\\log.txt";
+        public string GetLogPath() {
+            return Path.GetDirectoryName(LogDirectoryPath) + "\\log.txt";
         }
 
         /// <summary>
@@ -124,112 +119,85 @@ namespace CCPRestSDK
         /// </summary>
         /// <exception cref="Exception"></exception>
         /// <returns>包体内容</returns>
-        public Dictionary<string,object> QueryAccountInfo()
-        {
+        public Dictionary<string, object> QueryAccountInfo() {
             Dictionary<string, object> initError = paramCheckRest();
-            if (initError != null)
-            {
+            if (initError != null) {
                 return initError;
             }
             initError = paramCheckMainAccount();
-            if (initError != null)
-            {
+            if (initError != null) {
                 return initError;
             }
 
-            try
-            {
+            try {
                 string date = DateTime.Now.ToString("yyyyMMddhhmmss");
 
                 // 构建URL内容
                 string sigstr = MD5Encrypt(m_mainAccount + m_mainToken + date);
-                string uriStr = string.Format("https://{0}:{1}/{2}/Accounts/{3}/AccountInfo?sig={4}", m_restAddress, m_restPort, softVer, m_mainAccount, sigstr);
-                Uri address = new Uri(uriStr);
+                string uriStr = $"https://{m_restAddress}:{m_restPort}/{softVer}/Accounts/{m_mainAccount}/AccountInfo?sig={sigstr}";
 
-                WriteLog("QueryAccountInfo url = "+uriStr);
+                WriteLog("QueryAccountInfo url = " + uriStr);
 
                 // 创建网络请求  
-                HttpWebRequest request = WebRequest.Create(address) as HttpWebRequest;
-                setCertificateValidationCallBack();
+                var client = new HttpClient();
+                ;
 
-                // 构建Head
-                request.Method = "GET";
-                Encoding myEncoding = Encoding.GetEncoding("utf-8");
-                byte[] myByte = myEncoding.GetBytes(m_mainAccount + ":" + date);
-                string authStr = Convert.ToBase64String(myByte);
-                request.Headers.Add("Authorization", authStr);
+                string authStr = Convert.ToBase64String(Encoding.GetEncoding("utf-8").GetBytes(m_mainAccount + ":" + date));
 
-                if (m_bodyType == EBodyType.EType_XML)
-                {
-                    request.Accept = "application/xml";
-                    request.ContentType = "application/xml;charset=utf-8";
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(authStr);
+                if (m_bodyType == EBodyType.EType_XML) {
+                    throw new NotImplementedException();
+                    //request.Accept = "application/xml";
+                    //request.ContentType = "application/xml;charset=utf-8";
 
-                    using (HttpWebResponse response = request.GetResponse() as HttpWebResponse)
-                    {
-                        // Get the response stream  
-                        StreamReader reader = new StreamReader(response.GetResponseStream());
-                        string responseStr = reader.ReadToEnd();
+                    //using (HttpWebResponse response = request.GetResponse() as HttpWebResponse) {
+                    //    // Get the response stream  
+                    //    StreamReader reader = new StreamReader(response.GetResponseStream());
+                    //    string responseStr = reader.ReadToEnd();
 
-                        WriteLog("QueryAccountInfo responseBody = " + responseStr);
+                    //    WriteLog("QueryAccountInfo responseBody = " + responseStr);
 
-                        if (responseStr != null && responseStr.Length > 0)
-                        {
-                            Dictionary<string, object> responseResult = new Dictionary<string, object> { { "statusCode", "0" }, { "statusMsg", "成功" }, { "data", null } };
-                            XmlDocument resultXml = new XmlDocument();
-                            resultXml.LoadXml(responseStr);
-                            XmlNodeList nodeList = resultXml.SelectSingleNode("Response").ChildNodes;
-                            foreach (XmlNode item in nodeList)
-                            {
-                                if (item.Name == "statusCode")
-                                {
-                                    responseResult["statusCode"] = item.InnerText;
-                                }
-                                else if (item.Name == "statusMsg")
-                                {
-                                    responseResult["statusMsg"] = item.InnerText;
-                                }
-                                else if (item.Name == "Account")
-                                {
-                                    Dictionary<string, object> data = new Dictionary<string, object>();
-                                    foreach (XmlNode subItem in item.ChildNodes)
-                                    {
-                                        data.Add(subItem.Name, subItem.InnerText);
-                                    }
-                                    responseResult["data"] = new Dictionary<string, object> {{item.Name,data}};
-                                }
-                            }
-                            return responseResult;
-                        }
-                        return new Dictionary<string, object> { { "statusCode", 172002 }, { "statusMsg", "无返回" }, { "data", null } };
-                    }
+                    //    if (responseStr != null && responseStr.Length > 0) {
+                    //        Dictionary<string, object> responseResult = new Dictionary<string, object> { { "statusCode", "0" }, { "statusMsg", "成功" }, { "data", null } };
+                    //        XmlDocument resultXml = new XmlDocument();
+                    //        resultXml.LoadXml(responseStr);
+                    //        XmlNodeList nodeList = resultXml.SelectSingleNode("Response").ChildNodes;
+                    //        foreach (XmlNode item in nodeList) {
+                    //            if (item.Name == "statusCode") {
+                    //                responseResult["statusCode"] = item.InnerText;
+                    //            }
+                    //            else if (item.Name == "statusMsg") {
+                    //                responseResult["statusMsg"] = item.InnerText;
+                    //            }
+                    //            else if (item.Name == "Account") {
+                    //                Dictionary<string, object> data = new Dictionary<string, object>();
+                    //                foreach (XmlNode subItem in item.ChildNodes) {
+                    //                    data.Add(subItem.Name, subItem.InnerText);
+                    //                }
+                    //                responseResult["data"] = new Dictionary<string, object> { { item.Name, data } };
+                    //            }
+                    //        }
+                    //        return responseResult;
+                    //    }
+                    //    return new Dictionary<string, object> { { "statusCode", 172002 }, { "statusMsg", "无返回" }, { "data", null } };
+                    //}
                 }
-                else
-                {
-                    request.Accept = "application/json";
-                    request.ContentType = "application/json;charset=utf-8";
-
-                    using (HttpWebResponse response = request.GetResponse() as HttpWebResponse)
-                    {
-                        StreamReader reader = new StreamReader(response.GetResponseStream());
-                        string responseStr = reader.ReadToEnd();
-
-                        WriteLog("QueryAccountInfo responseBody = " + responseStr);
-
-                        if (responseStr != null && responseStr.Length > 0)
-                        {
-                            Dictionary<string, object> responseResult = new Dictionary<string, object> ();
-                            responseResult["resposeBody"] = responseStr;
-                            return responseResult;
-                        }
-                        return new Dictionary<string, object> { { "statusCode", 172002 }, { "statusMsg", "无返回" }, { "data", null } };
+                else {
+                    var result = client.GetStringAsync(uriStr).Result;
+                    WriteLog("QueryAccountInfo responseBody = " + result);
+                    if (!string.IsNullOrEmpty(result)) {
+                        Dictionary<string, object> responseResult = new Dictionary<string, object> {
+                            ["resposeBody"] = result
+                        };
+                        return responseResult;
                     }
+                    return new Dictionary<string, object> { { "statusCode", 172002 }, { "statusMsg", "无返回" }, { "data", null } };
                 }
 
 
                 // 获取请求
             }
-            catch (Exception e)
-            {
+            catch (Exception e) {
                 throw e;
             }
 
@@ -242,139 +210,122 @@ namespace CCPRestSDK
         /// <exception cref="ArgumentNullException">参数不能为空</exception>
         /// <exception cref="Exception"></exception>
         /// <returns>包体内容</returns>
-        public Dictionary<string, object> CreateSubAccount(string friendlyName) 
-        {
-            Dictionary<string, object> initError = paramCheckRest();
-            if (initError != null)
-            {
-                return initError;
-            }
-            initError = paramCheckMainAccount();
-            if (initError != null)
-            {
-                return initError;
-            }
-            initError = paramCheckAppId();
-            if (initError != null)
-            {
-                return initError;
-            }
+        public Dictionary<string, object> CreateSubAccount(string friendlyName) {
+            throw new NotImplementedException();
+            //Dictionary<string, object> initError = paramCheckRest();
+            //if (initError != null) {
+            //    return initError;
+            //}
+            //initError = paramCheckMainAccount();
+            //if (initError != null) {
+            //    return initError;
+            //}
+            //initError = paramCheckAppId();
+            //if (initError != null) {
+            //    return initError;
+            //}
 
-            if(friendlyName == null)
-                throw new ArgumentNullException("friendlyName");
+            //if (friendlyName == null)
+            //    throw new ArgumentNullException("friendlyName");
 
-            try
-            {
-                string date = DateTime.Now.ToString("yyyyMMddhhmmss");
+            //try {
+            //    string date = DateTime.Now.ToString("yyyyMMddhhmmss");
 
-                // 构建URL内容
-                string sigstr = MD5Encrypt(m_mainAccount + m_mainToken + date);
-                string uriStr = string.Format("https://{0}:{1}/{2}/Accounts/{3}/SubAccounts?sig={4}", m_restAddress, m_restPort, softVer, m_mainAccount, sigstr);
-                Uri address = new Uri(uriStr);
+            //    // 构建URL内容
+            //    string sigstr = MD5Encrypt(m_mainAccount + m_mainToken + date);
+            //    string uriStr = string.Format("https://{0}:{1}/{2}/Accounts/{3}/SubAccounts?sig={4}", m_restAddress, m_restPort, softVer, m_mainAccount, sigstr);
+            //    Uri address = new Uri(uriStr);
 
-                WriteLog("CreateSubAccount url = " +uriStr);
+            //    WriteLog("CreateSubAccount url = " + uriStr);
 
-                // 创建网络请求  
-                HttpWebRequest request = WebRequest.Create(address) as HttpWebRequest;
-                setCertificateValidationCallBack();
+            //    // 创建网络请求  
+            //    HttpWebRequest request = WebRequest.Create(address) as HttpWebRequest;
+            //    setCertificateValidationCallBack();
 
-                // 构建Head
-                request.Method = "POST";
+            //    // 构建Head
+            //    request.Method = "POST";
 
-                Encoding myEncoding = Encoding.GetEncoding("utf-8");
-                byte[] myByte = myEncoding.GetBytes(m_mainAccount + ":" + date);
-                string authStr = Convert.ToBase64String(myByte);
-                request.Headers.Add("Authorization", authStr);
+            //    Encoding myEncoding = Encoding.GetEncoding("utf-8");
+            //    byte[] myByte = myEncoding.GetBytes(m_mainAccount + ":" + date);
+            //    string authStr = Convert.ToBase64String(myByte);
+            //    request.Headers.Add("Authorization", authStr);
 
 
-                // 构建Body
-                StringBuilder data = new StringBuilder();
+            //    // 构建Body
+            //    StringBuilder data = new StringBuilder();
 
-                if (m_bodyType == EBodyType.EType_XML)
-                {
-                    request.Accept = "application/xml";
-                    request.ContentType = "application/xml;charset=utf-8";
+            //    if (m_bodyType == EBodyType.EType_XML) {
+            //        request.Accept = "application/xml";
+            //        request.ContentType = "application/xml;charset=utf-8";
 
-                    data.Append("<?xml version='1.0' encoding='utf-8'?><SubAccount>");
-                    data.Append("<appId>").Append(m_appId).Append("</appId>");
-                    data.Append("<friendlyName>").Append(friendlyName).Append("</friendlyName>");
-                    data.Append("</SubAccount>");
-                }
-                else
-                {
-                    request.Accept = "application/json";
-                    request.ContentType = "application/json;charset=utf-8";
+            //        data.Append("<?xml version='1.0' encoding='utf-8'?><SubAccount>");
+            //        data.Append("<appId>").Append(m_appId).Append("</appId>");
+            //        data.Append("<friendlyName>").Append(friendlyName).Append("</friendlyName>");
+            //        data.Append("</SubAccount>");
+            //    }
+            //    else {
+            //        request.Accept = "application/json";
+            //        request.ContentType = "application/json;charset=utf-8";
 
-                    data.Append("{");
-                    data.Append("\"appId\":\"").Append(m_appId).Append("\"");
-                    data.Append(",\"friendlyName\":\"").Append(friendlyName).Append("\"");
-                    data.Append("}");
-                }
+            //        data.Append("{");
+            //        data.Append("\"appId\":\"").Append(m_appId).Append("\"");
+            //        data.Append(",\"friendlyName\":\"").Append(friendlyName).Append("\"");
+            //        data.Append("}");
+            //    }
 
-                byte[] byteData = UTF8Encoding.UTF8.GetBytes(data.ToString());
+            //    byte[] byteData = UTF8Encoding.UTF8.GetBytes(data.ToString());
 
-                WriteLog("CreateSubAccount requestBody = " +data.ToString());
+            //    WriteLog("CreateSubAccount requestBody = " + data.ToString());
 
-                // 开始请求
-                using (Stream postStream = request.GetRequestStream())
-                {
-                    postStream.Write(byteData, 0, byteData.Length);
-                }
+            //    // 开始请求
+            //    using (Stream postStream = request.GetRequestStream()) {
+            //        postStream.Write(byteData, 0, byteData.Length);
+            //    }
 
-                // 获取请求
-                using (HttpWebResponse response = request.GetResponse() as HttpWebResponse)
-                {
-                    // Get the response stream  
-                    StreamReader reader = new StreamReader(response.GetResponseStream());
-                    string responseStr = reader.ReadToEnd();
+            //    // 获取请求
+            //    using (HttpWebResponse response = request.GetResponse() as HttpWebResponse) {
+            //        // Get the response stream  
+            //        StreamReader reader = new StreamReader(response.GetResponseStream());
+            //        string responseStr = reader.ReadToEnd();
 
-                    WriteLog("CreateSubAccount responseBody = " + responseStr);
+            //        WriteLog("CreateSubAccount responseBody = " + responseStr);
 
-                    if (responseStr != null && responseStr.Length > 0)
-                    {
-                        Dictionary<string, object> responseResult = new Dictionary<string, object> { { "statusCode", "0" }, { "statusMsg", "成功" }, { "data", null } };
+            //        if (responseStr != null && responseStr.Length > 0) {
+            //            Dictionary<string, object> responseResult = new Dictionary<string, object> { { "statusCode", "0" }, { "statusMsg", "成功" }, { "data", null } };
 
-                        if (m_bodyType == EBodyType.EType_XML)
-                        {
-                            XmlDocument resultXml = new XmlDocument();
-                            resultXml.LoadXml(responseStr);
-                            XmlNodeList nodeList = resultXml.SelectSingleNode("Response").ChildNodes;
-                            foreach (XmlNode item in nodeList)
-                            {
-                                if (item.Name == "statusCode")
-                                {
-                                    responseResult["statusCode"] = item.InnerText;
-                                }
-                                else if (item.Name == "statusMsg")
-                                {
-                                    responseResult["statusMsg"] = item.InnerText;
-                                }
-                                else if (item.Name == "SubAccount")
-                                {
-                                    Dictionary<string, object> retData = new Dictionary<string, object>();
-                                    foreach (XmlNode subItem in item.ChildNodes)
-                                    {
-                                        retData.Add(subItem.Name, subItem.InnerText);
-                                    }
-                                    responseResult["data"] = new Dictionary<string, object> { { item.Name, retData } };
-                                }
-                            }
-                        }
-                        else
-                        {
-                            responseResult.Clear();
-                            responseResult["resposeBody"] = responseStr;
-                        }
-                        
-                        return responseResult;
-                    }
-                    return new Dictionary<string, object> { { "statusCode", 172002 }, { "statusMsg", "无返回" }, { "data", null } };
-                }
-            }
-            catch (Exception e)
-            {
-                throw e;
-            }
+            //            if (m_bodyType == EBodyType.EType_XML) {
+            //                XmlDocument resultXml = new XmlDocument();
+            //                resultXml.LoadXml(responseStr);
+            //                XmlNodeList nodeList = resultXml.SelectSingleNode("Response").ChildNodes;
+            //                foreach (XmlNode item in nodeList) {
+            //                    if (item.Name == "statusCode") {
+            //                        responseResult["statusCode"] = item.InnerText;
+            //                    }
+            //                    else if (item.Name == "statusMsg") {
+            //                        responseResult["statusMsg"] = item.InnerText;
+            //                    }
+            //                    else if (item.Name == "SubAccount") {
+            //                        Dictionary<string, object> retData = new Dictionary<string, object>();
+            //                        foreach (XmlNode subItem in item.ChildNodes) {
+            //                            retData.Add(subItem.Name, subItem.InnerText);
+            //                        }
+            //                        responseResult["data"] = new Dictionary<string, object> { { item.Name, retData } };
+            //                    }
+            //                }
+            //            }
+            //            else {
+            //                responseResult.Clear();
+            //                responseResult["resposeBody"] = responseStr;
+            //            }
+
+            //            return responseResult;
+            //        }
+            //        return new Dictionary<string, object> { { "statusCode", 172002 }, { "statusMsg", "无返回" }, { "data", null } };
+            //    }
+            //}
+            //catch (Exception e) {
+            //    throw e;
+            //}
         }
 
         /// <summary>
@@ -385,156 +336,135 @@ namespace CCPRestSDK
         /// <exception cref="ArgumentOutOfRangeException">参数超出范围</exception>
         /// <exception cref="Exception"></exception>
         /// <returns></returns>
-        public Dictionary<string, object> GetSubAccounts(uint startNo, uint offset)
-        {
-            Dictionary<string, object> initError = paramCheckRest();
-            if (initError != null)
-            {
-                return initError;
-            }
-            initError = paramCheckMainAccount();
-            if (initError != null)
-            {
-                return initError;
-            }
-            initError = paramCheckAppId();
-            if (initError != null)
-            {
-                return initError;
-            }
+        public Dictionary<string, object> GetSubAccounts(uint startNo, uint offset) {
+            throw new NotImplementedException();
+            //Dictionary<string, object> initError = paramCheckRest();
+            //if (initError != null) {
+            //    return initError;
+            //}
+            //initError = paramCheckMainAccount();
+            //if (initError != null) {
+            //    return initError;
+            //}
+            //initError = paramCheckAppId();
+            //if (initError != null) {
+            //    return initError;
+            //}
 
-            if (offset < 1 || offset > 100)
-            {
-                throw new ArgumentOutOfRangeException("offset超出范围");
-            }
-            try
-            {
-                string date = DateTime.Now.ToString("yyyyMMddhhmmss");
+            //if (offset < 1 || offset > 100) {
+            //    throw new ArgumentOutOfRangeException("offset超出范围");
+            //}
+            //try {
+            //    string date = DateTime.Now.ToString("yyyyMMddhhmmss");
 
-                // 构建URL内容
-                string sigstr = MD5Encrypt(m_mainAccount + m_mainToken + date);
-                string uriStr = string.Format("https://{0}:{1}/{2}/Accounts/{3}/GetSubAccounts?sig={4}", m_restAddress, m_restPort, softVer, m_mainAccount, sigstr);
-                Uri address = new Uri(uriStr);
+            //    // 构建URL内容
+            //    string sigstr = MD5Encrypt(m_mainAccount + m_mainToken + date);
+            //    string uriStr = string.Format("https://{0}:{1}/{2}/Accounts/{3}/GetSubAccounts?sig={4}", m_restAddress, m_restPort, softVer, m_mainAccount, sigstr);
+            //    Uri address = new Uri(uriStr);
 
-                WriteLog("GetSubAccounts url = "+uriStr);
+            //    WriteLog("GetSubAccounts url = " + uriStr);
 
-                // 创建网络请求  
-                HttpWebRequest request = WebRequest.Create(address) as HttpWebRequest;
-                setCertificateValidationCallBack();
+            //    // 创建网络请求  
+            //    HttpWebRequest request = WebRequest.Create(address) as HttpWebRequest;
+            //    setCertificateValidationCallBack();
 
-                // 构建Head
-                request.Method = "POST";
+            //    // 构建Head
+            //    request.Method = "POST";
 
-                Encoding myEncoding = Encoding.GetEncoding("utf-8");
-                byte[] myByte = myEncoding.GetBytes(m_mainAccount + ":" + date);
-                string authStr = Convert.ToBase64String(myByte);
-                request.Headers.Add("Authorization", authStr);
+            //    Encoding myEncoding = Encoding.GetEncoding("utf-8");
+            //    byte[] myByte = myEncoding.GetBytes(m_mainAccount + ":" + date);
+            //    string authStr = Convert.ToBase64String(myByte);
+            //    request.Headers.Add("Authorization", authStr);
 
 
-                // 构建Body
-                StringBuilder data = new StringBuilder();
+            //    // 构建Body
+            //    StringBuilder data = new StringBuilder();
 
-                if (m_bodyType == EBodyType.EType_XML)
-                {
-                    request.Accept = "application/xml";
-                    request.ContentType = "application/xml;charset=utf-8";
+            //    if (m_bodyType == EBodyType.EType_XML) {
+            //        request.Accept = "application/xml";
+            //        request.ContentType = "application/xml;charset=utf-8";
 
-                    data.Append("<?xml version='1.0' encoding='utf-8'?><SubAccount>");
-                    data.Append("<appId>").Append(m_appId).Append("</appId>");
-                    data.Append("<startNo>").Append(startNo).Append("</startNo>");
-                    data.Append("<offset>").Append(offset).Append("</offset>");
-                    data.Append("</SubAccount>");
-                }
-                else
-                {
-                    request.Accept = "application/json";
-                    request.ContentType = "application/json;charset=utf-8";
+            //        data.Append("<?xml version='1.0' encoding='utf-8'?><SubAccount>");
+            //        data.Append("<appId>").Append(m_appId).Append("</appId>");
+            //        data.Append("<startNo>").Append(startNo).Append("</startNo>");
+            //        data.Append("<offset>").Append(offset).Append("</offset>");
+            //        data.Append("</SubAccount>");
+            //    }
+            //    else {
+            //        request.Accept = "application/json";
+            //        request.ContentType = "application/json;charset=utf-8";
 
-                    data.Append("{");
-                    data.Append("\"appId\":\"").Append(m_appId).Append("\"");
-                    data.Append(",\"startNo\":\"").Append(startNo).Append("\"");
-                    data.Append(",\"offset\":\"").Append(offset).Append("\"");
-                    data.Append("}");
-                }
+            //        data.Append("{");
+            //        data.Append("\"appId\":\"").Append(m_appId).Append("\"");
+            //        data.Append(",\"startNo\":\"").Append(startNo).Append("\"");
+            //        data.Append(",\"offset\":\"").Append(offset).Append("\"");
+            //        data.Append("}");
+            //    }
 
-                byte[] byteData = UTF8Encoding.UTF8.GetBytes(data.ToString());
+            //    byte[] byteData = UTF8Encoding.UTF8.GetBytes(data.ToString());
 
-                WriteLog("GetSubAccounts requestBody = " + data.ToString());
+            //    WriteLog("GetSubAccounts requestBody = " + data.ToString());
 
-                // 开始请求
-                using (Stream postStream = request.GetRequestStream())
-                {
-                    postStream.Write(byteData, 0, byteData.Length);
-                }
+            //    // 开始请求
+            //    using (Stream postStream = request.GetRequestStream()) {
+            //        postStream.Write(byteData, 0, byteData.Length);
+            //    }
 
-                // 获取请求
-                using (HttpWebResponse response = request.GetResponse() as HttpWebResponse)
-                {
-                    // Get the response stream  
-                    StreamReader reader = new StreamReader(response.GetResponseStream());
-                    string responseStr = reader.ReadToEnd();
+            //    // 获取请求
+            //    using (HttpWebResponse response = request.GetResponse() as HttpWebResponse) {
+            //        // Get the response stream  
+            //        StreamReader reader = new StreamReader(response.GetResponseStream());
+            //        string responseStr = reader.ReadToEnd();
 
-                    WriteLog("GetSubAccounts responseBody = "+responseStr);
+            //        WriteLog("GetSubAccounts responseBody = " + responseStr);
 
-                    if (responseStr != null && responseStr.Length > 0)
-                    {
-                        Dictionary<string, object> responseResult = new Dictionary<string, object> { { "statusCode", "0" }, { "statusMsg", "成功" }, { "data", null } };
-                        Dictionary<string, object> retData = new Dictionary<string, object>();
-                        List<object> subAccountList = new List<object>();
+            //        if (responseStr != null && responseStr.Length > 0) {
+            //            Dictionary<string, object> responseResult = new Dictionary<string, object> { { "statusCode", "0" }, { "statusMsg", "成功" }, { "data", null } };
+            //            Dictionary<string, object> retData = new Dictionary<string, object>();
+            //            List<object> subAccountList = new List<object>();
 
-                        if (m_bodyType == EBodyType.EType_XML)
-                        {
-                            XmlDocument resultXml = new XmlDocument();
-                            resultXml.LoadXml(responseStr);
-                            XmlNodeList nodeList = resultXml.SelectSingleNode("Response").ChildNodes;
-                            foreach (XmlNode item in nodeList)
-                            {
-                                if (item.Name == "statusCode")
-                                {
-                                    responseResult["statusCode"] = item.InnerText;
-                                }
-                                else if (item.Name == "statusMsg")
-                                {
-                                    responseResult["statusMsg"] = item.InnerText;
-                                }
-                                else if (item.Name == "totalCount")
-                                {
-                                    retData.Add(item.Name, item.InnerText);
-                                }
-                                else if (item.Name == "SubAccount")
-                                {
-                                    Dictionary<string, object> SubAccount = new Dictionary<string, object>();
-                                    foreach (XmlNode subItem in item.ChildNodes)
-                                    {
-                                        SubAccount.Add(subItem.Name, subItem.InnerText);
-                                    }
-                                    subAccountList.Add(SubAccount);
-                                }
-                            }
-                        }
-                        else
-                        {
-                            responseResult.Clear();
-                            responseResult["resposeBody"] = responseStr;
-                        }
+            //            if (m_bodyType == EBodyType.EType_XML) {
+            //                XmlDocument resultXml = new XmlDocument();
+            //                resultXml.LoadXml(responseStr);
+            //                XmlNodeList nodeList = resultXml.SelectSingleNode("Response").ChildNodes;
+            //                foreach (XmlNode item in nodeList) {
+            //                    if (item.Name == "statusCode") {
+            //                        responseResult["statusCode"] = item.InnerText;
+            //                    }
+            //                    else if (item.Name == "statusMsg") {
+            //                        responseResult["statusMsg"] = item.InnerText;
+            //                    }
+            //                    else if (item.Name == "totalCount") {
+            //                        retData.Add(item.Name, item.InnerText);
+            //                    }
+            //                    else if (item.Name == "SubAccount") {
+            //                        Dictionary<string, object> SubAccount = new Dictionary<string, object>();
+            //                        foreach (XmlNode subItem in item.ChildNodes) {
+            //                            SubAccount.Add(subItem.Name, subItem.InnerText);
+            //                        }
+            //                        subAccountList.Add(SubAccount);
+            //                    }
+            //                }
+            //            }
+            //            else {
+            //                responseResult.Clear();
+            //                responseResult["resposeBody"] = responseStr;
+            //            }
 
-                        if (retData.Count > 0)
-                        {
-                            if (subAccountList.Count > 0)
-                            {
-                                retData.Add("SubAccount", subAccountList);
-                            }
-                            responseResult["data"] = retData;
-                        }
-                        return responseResult;
-                    }
-                    return new Dictionary<string, object> { { "statusCode", 172002 }, { "statusMsg", "无返回" }, { "data", null } };
-                }
-            }
-            catch (Exception e)
-            {
-                throw e;
-            }
+            //            if (retData.Count > 0) {
+            //                if (subAccountList.Count > 0) {
+            //                    retData.Add("SubAccount", subAccountList);
+            //                }
+            //                responseResult["data"] = retData;
+            //            }
+            //            return responseResult;
+            //        }
+            //        return new Dictionary<string, object> { { "statusCode", 172002 }, { "statusMsg", "无返回" }, { "data", null } };
+            //    }
+            //}
+            //catch (Exception e) {
+            //    throw e;
+            //}
         }
 
 
@@ -545,139 +475,122 @@ namespace CCPRestSDK
         /// <exception cref="ArgumentNullException">参数不能为空</exception>
         /// <exception cref="Exception"></exception>
         /// <returns>包体内容</returns>
-        public Dictionary<string, object> QuerySubAccount(string friendlyName)
-        {
-            Dictionary<string, object> initError = paramCheckRest();
-            if (initError != null)
-            {
-                return initError;
-            }
-            initError = paramCheckMainAccount();
-            if (initError != null)
-            {
-                return initError;
-            }
-            initError = paramCheckAppId();
-            if (initError != null)
-            {
-                return initError;
-            }
+        public Dictionary<string, object> QuerySubAccount(string friendlyName) {
+            throw new NotImplementedException();
+            //Dictionary<string, object> initError = paramCheckRest();
+            //if (initError != null) {
+            //    return initError;
+            //}
+            //initError = paramCheckMainAccount();
+            //if (initError != null) {
+            //    return initError;
+            //}
+            //initError = paramCheckAppId();
+            //if (initError != null) {
+            //    return initError;
+            //}
 
-            if (friendlyName == null)
-                throw new ArgumentNullException("friendlyName");
+            //if (friendlyName == null)
+            //    throw new ArgumentNullException("friendlyName");
 
-            try
-            {
-                string date = DateTime.Now.ToString("yyyyMMddhhmmss");
+            //try {
+            //    string date = DateTime.Now.ToString("yyyyMMddhhmmss");
 
-                // 构建URL内容
-                string sigstr = MD5Encrypt(m_mainAccount + m_mainToken + date);
-                string uriStr = string.Format("https://{0}:{1}/{2}/Accounts/{3}/QuerySubAccountByName?sig={4}", m_restAddress, m_restPort, softVer, m_mainAccount, sigstr);
-                Uri address = new Uri(uriStr);
+            //    // 构建URL内容
+            //    string sigstr = MD5Encrypt(m_mainAccount + m_mainToken + date);
+            //    string uriStr = string.Format("https://{0}:{1}/{2}/Accounts/{3}/QuerySubAccountByName?sig={4}", m_restAddress, m_restPort, softVer, m_mainAccount, sigstr);
+            //    Uri address = new Uri(uriStr);
 
-                WriteLog("QuerySubAccount url = " + uriStr);
+            //    WriteLog("QuerySubAccount url = " + uriStr);
 
-                // 创建网络请求  
-                HttpWebRequest request = WebRequest.Create(address) as HttpWebRequest;
-                setCertificateValidationCallBack();
+            //    // 创建网络请求  
+            //    HttpWebRequest request = WebRequest.Create(address) as HttpWebRequest;
+            //    setCertificateValidationCallBack();
 
-                // 构建Head
-                request.Method = "POST";
+            //    // 构建Head
+            //    request.Method = "POST";
 
-                Encoding myEncoding = Encoding.GetEncoding("utf-8");
-                byte[] myByte = myEncoding.GetBytes(m_mainAccount + ":" + date);
-                string authStr = Convert.ToBase64String(myByte);
-                request.Headers.Add("Authorization", authStr);
+            //    Encoding myEncoding = Encoding.GetEncoding("utf-8");
+            //    byte[] myByte = myEncoding.GetBytes(m_mainAccount + ":" + date);
+            //    string authStr = Convert.ToBase64String(myByte);
+            //    request.Headers.Add("Authorization", authStr);
 
 
-                // 构建Body
-                StringBuilder data = new StringBuilder();
+            //    // 构建Body
+            //    StringBuilder data = new StringBuilder();
 
-                if (m_bodyType == EBodyType.EType_XML)
-                {
-                    request.Accept = "application/xml";
-                    request.ContentType = "application/xml;charset=utf-8";
+            //    if (m_bodyType == EBodyType.EType_XML) {
+            //        request.Accept = "application/xml";
+            //        request.ContentType = "application/xml;charset=utf-8";
 
-                    data.Append("<?xml version='1.0' encoding='utf-8'?><SubAccount>");
-                    data.Append("<appId>").Append(m_appId).Append("</appId>");
-                    data.Append("<friendlyName>").Append(friendlyName).Append("</friendlyName>");
-                    data.Append("</SubAccount>");
-                }
-                else
-                {
-                    request.Accept = "application/json";
-                    request.ContentType = "application/json;charset=utf-8";
+            //        data.Append("<?xml version='1.0' encoding='utf-8'?><SubAccount>");
+            //        data.Append("<appId>").Append(m_appId).Append("</appId>");
+            //        data.Append("<friendlyName>").Append(friendlyName).Append("</friendlyName>");
+            //        data.Append("</SubAccount>");
+            //    }
+            //    else {
+            //        request.Accept = "application/json";
+            //        request.ContentType = "application/json;charset=utf-8";
 
-                    data.Append("{");
-                    data.Append("\"appId\":\"").Append(m_appId).Append("\"");
-                    data.Append(",\"friendlyName\":\"").Append(friendlyName).Append("\"");
-                    data.Append("}");
-                }
+            //        data.Append("{");
+            //        data.Append("\"appId\":\"").Append(m_appId).Append("\"");
+            //        data.Append(",\"friendlyName\":\"").Append(friendlyName).Append("\"");
+            //        data.Append("}");
+            //    }
 
-                byte[] byteData = UTF8Encoding.UTF8.GetBytes(data.ToString());
+            //    byte[] byteData = UTF8Encoding.UTF8.GetBytes(data.ToString());
 
-                WriteLog("QuerySubAccount requestBody = "+data.ToString());
+            //    WriteLog("QuerySubAccount requestBody = " + data.ToString());
 
-                // 开始请求
-                using (Stream postStream = request.GetRequestStream())
-                {
-                    postStream.Write(byteData, 0, byteData.Length);
-                }
+            //    // 开始请求
+            //    using (Stream postStream = request.GetRequestStream()) {
+            //        postStream.Write(byteData, 0, byteData.Length);
+            //    }
 
-                // 获取请求
-                using (HttpWebResponse response = request.GetResponse() as HttpWebResponse)
-                {
-                    // Get the response stream  
-                    StreamReader reader = new StreamReader(response.GetResponseStream());
-                    string responseStr = reader.ReadToEnd();
+            //    // 获取请求
+            //    using (HttpWebResponse response = request.GetResponse() as HttpWebResponse) {
+            //        // Get the response stream  
+            //        StreamReader reader = new StreamReader(response.GetResponseStream());
+            //        string responseStr = reader.ReadToEnd();
 
-                    WriteLog("QuerySubAccount responseBody = " + responseStr);
+            //        WriteLog("QuerySubAccount responseBody = " + responseStr);
 
-                    if (responseStr != null && responseStr.Length > 0)
-                    {
-                        Dictionary<string, object> responseResult = new Dictionary<string, object> { { "statusCode", "0" }, { "statusMsg", "成功" }, { "data", null } };
+            //        if (responseStr != null && responseStr.Length > 0) {
+            //            Dictionary<string, object> responseResult = new Dictionary<string, object> { { "statusCode", "0" }, { "statusMsg", "成功" }, { "data", null } };
 
-                        if (m_bodyType == EBodyType.EType_XML)
-                        {
-                            XmlDocument resultXml = new XmlDocument();
-                            resultXml.LoadXml(responseStr);
-                            XmlNodeList nodeList = resultXml.SelectSingleNode("Response").ChildNodes;
-                            foreach (XmlNode item in nodeList)
-                            {
-                                if (item.Name == "statusCode")
-                                {
-                                    responseResult["statusCode"] = item.InnerText;
-                                }
-                                else if (item.Name == "statusMsg")
-                                {
-                                    responseResult["statusMsg"] = item.InnerText;
-                                }
-                                else if (item.Name == "SubAccount")
-                                {
-                                    Dictionary<string, object> retData = new Dictionary<string, object>();
-                                    foreach (XmlNode subItem in item.ChildNodes)
-                                    {
-                                        retData.Add(subItem.Name, subItem.InnerText);
-                                    }
-                                    responseResult["data"] = new Dictionary<string, object> { { item.Name, retData } };
-                                }
-                            }
-                        }
-                        else
-                        {
-                            responseResult.Clear();
-                            responseResult["resposeBody"] = responseStr;
-                        }
-                        
-                        return responseResult;
-                    }
-                    return new Dictionary<string, object> { { "statusCode", 172002 }, { "statusMsg", "无返回" }, { "data", null } };
-                }
-            }
-            catch (Exception e)
-            {
-                throw e;
-            }
+            //            if (m_bodyType == EBodyType.EType_XML) {
+            //                XmlDocument resultXml = new XmlDocument();
+            //                resultXml.LoadXml(responseStr);
+            //                XmlNodeList nodeList = resultXml.SelectSingleNode("Response").ChildNodes;
+            //                foreach (XmlNode item in nodeList) {
+            //                    if (item.Name == "statusCode") {
+            //                        responseResult["statusCode"] = item.InnerText;
+            //                    }
+            //                    else if (item.Name == "statusMsg") {
+            //                        responseResult["statusMsg"] = item.InnerText;
+            //                    }
+            //                    else if (item.Name == "SubAccount") {
+            //                        Dictionary<string, object> retData = new Dictionary<string, object>();
+            //                        foreach (XmlNode subItem in item.ChildNodes) {
+            //                            retData.Add(subItem.Name, subItem.InnerText);
+            //                        }
+            //                        responseResult["data"] = new Dictionary<string, object> { { item.Name, retData } };
+            //                    }
+            //                }
+            //            }
+            //            else {
+            //                responseResult.Clear();
+            //                responseResult["resposeBody"] = responseStr;
+            //            }
+
+            //            return responseResult;
+            //        }
+            //        return new Dictionary<string, object> { { "statusCode", 172002 }, { "statusMsg", "无返回" }, { "data", null } };
+            //    }
+            //}
+            //catch (Exception e) {
+            //    throw e;
+            //}
         }
 
 
@@ -690,151 +603,132 @@ namespace CCPRestSDK
         /// <exception cref="ArgumentOutOfRangeException">参数超出范围</exception>
         /// <exception cref="Exception"></exception>
         /// <returns>包体内容</returns>
-        public Dictionary<string, object> SendSMS(string to, string body)
-        {
-            Dictionary<string, object> initError = paramCheckRest();
-            if (initError != null)
-            {
-                return initError;
-            }
-            initError = paramCheckMainAccount();
-            if (initError != null)
-            {
-                return initError;
-            }
-            initError = paramCheckAppId();
-            if (initError != null)
-            {
-                return initError;
-            }
+        public Dictionary<string, object> SendSMS(string to, string body) {
+            throw new NotImplementedException();
+            //Dictionary<string, object> initError = paramCheckRest();
+            //if (initError != null) {
+            //    return initError;
+            //}
+            //initError = paramCheckMainAccount();
+            //if (initError != null) {
+            //    return initError;
+            //}
+            //initError = paramCheckAppId();
+            //if (initError != null) {
+            //    return initError;
+            //}
 
-            if (to == null)
-            {
-                throw new ArgumentNullException("to");
-            }
+            //if (to == null) {
+            //    throw new ArgumentNullException("to");
+            //}
 
-            if (body == null)
-            {
-                throw new ArgumentNullException("body");
-            }
+            //if (body == null) {
+            //    throw new ArgumentNullException("body");
+            //}
 
-            try
-            {
-                string date = DateTime.Now.ToString("yyyyMMddhhmmss");
+            //try {
+            //    string date = DateTime.Now.ToString("yyyyMMddhhmmss");
 
-                // 构建URL内容
-                string sigstr = MD5Encrypt(m_mainAccount + m_mainToken + date);
-                string uriStr = string.Format("https://{0}:{1}/{2}/Accounts/{3}/SMS/Messages?sig={4}", m_restAddress, m_restPort, softVer, m_mainAccount, sigstr);
-                Uri address = new Uri(uriStr);
+            //    // 构建URL内容
+            //    string sigstr = MD5Encrypt(m_mainAccount + m_mainToken + date);
+            //    string uriStr = string.Format("https://{0}:{1}/{2}/Accounts/{3}/SMS/Messages?sig={4}", m_restAddress, m_restPort, softVer, m_mainAccount, sigstr);
+            //    Uri address = new Uri(uriStr);
 
-                WriteLog("SendSMS url = " + uriStr);
+            //    WriteLog("SendSMS url = " + uriStr);
 
-                // 创建网络请求  
-                HttpWebRequest request = WebRequest.Create(address) as HttpWebRequest;
-                setCertificateValidationCallBack();
+            //    // 创建网络请求  
+            //    HttpWebRequest request = WebRequest.Create(address) as HttpWebRequest;
+            //    setCertificateValidationCallBack();
 
-                // 构建Head
-                request.Method = "POST";
+            //    // 构建Head
+            //    request.Method = "POST";
 
-                Encoding myEncoding = Encoding.GetEncoding("utf-8");
-                byte[] myByte = myEncoding.GetBytes(m_mainAccount + ":" + date);
-                string authStr = Convert.ToBase64String(myByte);
-                request.Headers.Add("Authorization", authStr);
+            //    Encoding myEncoding = Encoding.GetEncoding("utf-8");
+            //    byte[] myByte = myEncoding.GetBytes(m_mainAccount + ":" + date);
+            //    string authStr = Convert.ToBase64String(myByte);
+            //    request.Headers.Add("Authorization", authStr);
 
 
-                // 构建Body
-                StringBuilder data = new StringBuilder();
+            //    // 构建Body
+            //    StringBuilder data = new StringBuilder();
 
-                if (m_bodyType == EBodyType.EType_XML)
-                {
-                    request.Accept = "application/xml";
-                    request.ContentType = "application/xml;charset=utf-8";
+            //    if (m_bodyType == EBodyType.EType_XML) {
+            //        request.Accept = "application/xml";
+            //        request.ContentType = "application/xml;charset=utf-8";
 
-                    data.Append("<?xml version='1.0' encoding='utf-8'?><SMSMessage>");
-                    data.Append("<to>").Append(to).Append("</to>");
-                    data.Append("<body>").Append(body).Append("</body>");
-                    data.Append("<appId>").Append(m_appId).Append("</appId>");
-                    data.Append("</SMSMessage>");
-                }
-                else
-                {
-                    request.Accept = "application/json";
-                    request.ContentType = "application/json;charset=utf-8";
+            //        data.Append("<?xml version='1.0' encoding='utf-8'?><SMSMessage>");
+            //        data.Append("<to>").Append(to).Append("</to>");
+            //        data.Append("<body>").Append(body).Append("</body>");
+            //        data.Append("<appId>").Append(m_appId).Append("</appId>");
+            //        data.Append("</SMSMessage>");
+            //    }
+            //    else {
+            //        request.Accept = "application/json";
+            //        request.ContentType = "application/json;charset=utf-8";
 
-                    data.Append("{");
-                    data.Append("\"to\":\"").Append(to).Append("\"");
-                    data.Append(",\"body\":\"").Append(body).Append("\"");
-                    data.Append(",\"appId\":\"").Append(m_appId).Append("\"");
-                    data.Append("}");
+            //        data.Append("{");
+            //        data.Append("\"to\":\"").Append(to).Append("\"");
+            //        data.Append(",\"body\":\"").Append(body).Append("\"");
+            //        data.Append(",\"appId\":\"").Append(m_appId).Append("\"");
+            //        data.Append("}");
 
-                }
+            //    }
 
-                byte[] byteData = UTF8Encoding.UTF8.GetBytes(data.ToString());
+            //    byte[] byteData = UTF8Encoding.UTF8.GetBytes(data.ToString());
 
-                WriteLog("SendSMS requestBody = "+data.ToString());
+            //    WriteLog("SendSMS requestBody = " + data.ToString());
 
-                // 开始请求
-                using (Stream postStream = request.GetRequestStream())
-                {
-                    postStream.Write(byteData, 0, byteData.Length);
-                }
+            //    // 开始请求
+            //    using (Stream postStream = request.GetRequestStream()) {
+            //        postStream.Write(byteData, 0, byteData.Length);
+            //    }
 
-                // 获取请求
-                using (HttpWebResponse response = request.GetResponse() as HttpWebResponse)
-                {
-                    // Get the response stream  
-                    StreamReader reader = new StreamReader(response.GetResponseStream());
-                    string responseStr = reader.ReadToEnd();
+            //    // 获取请求
+            //    using (HttpWebResponse response = request.GetResponse() as HttpWebResponse) {
+            //        // Get the response stream  
+            //        StreamReader reader = new StreamReader(response.GetResponseStream());
+            //        string responseStr = reader.ReadToEnd();
 
-                    WriteLog("SendSMS responseBody = "+responseStr);
+            //        WriteLog("SendSMS responseBody = " + responseStr);
 
-                    if (responseStr != null && responseStr.Length > 0)
-                    {
-                        Dictionary<string, object> responseResult = new Dictionary<string, object> { { "statusCode", "0" }, { "statusMsg", "成功" }, { "data", null } };
+            //        if (responseStr != null && responseStr.Length > 0) {
+            //            Dictionary<string, object> responseResult = new Dictionary<string, object> { { "statusCode", "0" }, { "statusMsg", "成功" }, { "data", null } };
 
-                        if (m_bodyType == EBodyType.EType_XML)
-                        {
-                            XmlDocument resultXml = new XmlDocument();
-                            resultXml.LoadXml(responseStr);
-                            XmlNodeList nodeList = resultXml.SelectSingleNode("Response").ChildNodes;
-                            foreach (XmlNode item in nodeList)
-                            {
-                                if (item.Name == "statusCode")
-                                {
-                                    responseResult["statusCode"] = item.InnerText;
-                                }
-                                else if (item.Name == "statusMsg")
-                                {
-                                    responseResult["statusMsg"] = item.InnerText;
-                                }
-                                else if (item.Name == "SMSMessage")
-                                {
-                                    Dictionary<string, object> retData = new Dictionary<string, object>();
-                                    foreach (XmlNode subItem in item.ChildNodes)
-                                    {
-                                        retData.Add(subItem.Name, subItem.InnerText);
-                                    }
-                                    responseResult["data"] = new Dictionary<string, object> { { item.Name, retData } };
-                                }
-                            }
-                        }
-                        else
-                        {
-                            responseResult.Clear();
-                            responseResult["resposeBody"] = responseStr;
-                        }
-                        
-                        return responseResult;
-                    }
-                    return new Dictionary<string, object> { { "statusCode", 172002 }, { "statusMsg", "无返回" }, { "data", null } };
-                }
-            }
-            catch (Exception e)
-            {
-                
-                throw e;
-            }
-            
+            //            if (m_bodyType == EBodyType.EType_XML) {
+            //                XmlDocument resultXml = new XmlDocument();
+            //                resultXml.LoadXml(responseStr);
+            //                XmlNodeList nodeList = resultXml.SelectSingleNode("Response").ChildNodes;
+            //                foreach (XmlNode item in nodeList) {
+            //                    if (item.Name == "statusCode") {
+            //                        responseResult["statusCode"] = item.InnerText;
+            //                    }
+            //                    else if (item.Name == "statusMsg") {
+            //                        responseResult["statusMsg"] = item.InnerText;
+            //                    }
+            //                    else if (item.Name == "SMSMessage") {
+            //                        Dictionary<string, object> retData = new Dictionary<string, object>();
+            //                        foreach (XmlNode subItem in item.ChildNodes) {
+            //                            retData.Add(subItem.Name, subItem.InnerText);
+            //                        }
+            //                        responseResult["data"] = new Dictionary<string, object> { { item.Name, retData } };
+            //                    }
+            //                }
+            //            }
+            //            else {
+            //                responseResult.Clear();
+            //                responseResult["resposeBody"] = responseStr;
+            //            }
+
+            //            return responseResult;
+            //        }
+            //        return new Dictionary<string, object> { { "statusCode", 172002 }, { "statusMsg", "无返回" }, { "data", null } };
+            //    }
+            //}
+            //catch (Exception e) {
+
+            //    throw e;
+            //}
+
         }
 
         /// <summary>
@@ -846,174 +740,92 @@ namespace CCPRestSDK
         /// <exception cref="ArgumentNullException">参数不能为空</exception>
         /// <exception cref="Exception"></exception>
         /// <returns></returns>
-        public Dictionary<string, object> SendTemplateSMS(string to, string templateId, string[] data)
-        {
+        public Dictionary<string, object> SendTemplateSMS(string to, string templateId, string[] data) {
             Dictionary<string, object> initError = paramCheckRest();
-            if (initError != null)
-            {
+            if (initError != null) {
                 return initError;
             }
             initError = paramCheckMainAccount();
-            if (initError != null)
-            {
+            if (initError != null) {
                 return initError;
             }
             initError = paramCheckAppId();
-            if (initError != null)
-            {
+            if (initError != null) {
                 return initError;
             }
 
-            if (to == null)
-            {
-                throw new ArgumentNullException("to");
+            if (to == null) {
+                throw new ArgumentNullException(nameof(to));
             }
 
-            if (templateId == null)
-            {
-                throw new ArgumentNullException("templateId");
+            if (templateId == null) {
+                throw new ArgumentNullException(nameof(templateId));
             }
 
-            try
-            {
-                string date = DateTime.Now.ToString("yyyyMMddhhmmss");
+            try {
+                string date = DateTime.Now.ToString("yyyyMMddHHmmss");
 
                 // 构建URL内容
                 string sigstr = MD5Encrypt(m_mainAccount + m_mainToken + date);
-                string uriStr = string.Format("https://{0}:{1}/{2}/Accounts/{3}/SMS/TemplateSMS?sig={4}", m_restAddress, m_restPort, softVer, m_mainAccount, sigstr);
+                string uriStr =
+                    $"https://{m_restAddress}:{m_restPort}/{softVer}/Accounts/{m_mainAccount}/SMS/TemplateSMS?sig={sigstr.ToUpper()}";
                 Uri address = new Uri(uriStr);
 
                 WriteLog("SendTemplateSMS url = " + uriStr);
 
                 // 创建网络请求  
-                HttpWebRequest request = WebRequest.Create(address) as HttpWebRequest;
-                setCertificateValidationCallBack();
-
+                var client = new HttpClient();
                 // 构建Head
-                request.Method = "POST";
 
                 Encoding myEncoding = Encoding.GetEncoding("utf-8");
                 byte[] myByte = myEncoding.GetBytes(m_mainAccount + ":" + date);
                 string authStr = Convert.ToBase64String(myByte);
-                request.Headers.Add("Authorization", authStr);
-
+                WriteLog($"authorization:{authStr}");
+                client.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", authStr);
 
                 // 构建Body
+
+
                 StringBuilder bodyData = new StringBuilder();
-
-                if (m_bodyType == EBodyType.EType_XML)
-                {
-                    request.Accept = "application/xml";
-                    request.ContentType = "application/xml;charset=utf-8";
-
-                    bodyData.Append("<?xml version='1.0' encoding='utf-8'?><TemplateSMS>");
-                    bodyData.Append("<to>").Append(to).Append("</to>");
-                    bodyData.Append("<appId>").Append(m_appId).Append("</appId>");
-                    bodyData.Append("<templateId>").Append(templateId).Append("</templateId>");
-                    if (data != null && data.Length>0)
-                    {
-                        bodyData.Append("<datas>");
-                        foreach (string item in data)
-                        {
-                            bodyData.Append("<data>").Append(item).Append("</data>");
-                        }
-                        bodyData.Append("</datas>");
-                    }
-                    bodyData.Append("</TemplateSMS>");
-                }
-                else
-                {
-                    request.Accept = "application/json";
-                    request.ContentType = "application/json;charset=utf-8";
-
-                    bodyData.Append("{");
-                    bodyData.Append("\"to\":\"").Append(to).Append("\"");
-                    bodyData.Append(",\"appId\":\"").Append(m_appId).Append("\"");
-                    bodyData.Append(",\"templateId\":\"").Append(templateId).Append("\"");
-                    if (data != null && data.Length > 0)
-                    {
-                        bodyData.Append(",\"datas\":[");
-                        int index = 0;
-                        foreach (string item in data)
-                        {
-                            if (index == 0)
-                            {
-                                bodyData.Append("\""+item+"\"");
-                            }
-                            else
-                            {
-                                bodyData.Append(",\"" + item + "\"");
-                            }
-                            index++;
-                        }
-                        bodyData.Append("]");
-                    }
-                    bodyData.Append("}");
-
+                if (m_bodyType == EBodyType.EType_XML) {
+                    throw new NotImplementedException();
                 }
 
-                byte[] byteData = UTF8Encoding.UTF8.GetBytes(bodyData.ToString());
-
-                WriteLog("SendTemplateSMS requestBody = " + bodyData.ToString());
+                WriteLog("SendTemplateSMS requestBody = " + bodyData);
 
                 // 开始请求
-                using (Stream postStream = request.GetRequestStream())
-                {
-                    postStream.Write(byteData, 0, byteData.Length);
-                }
-
-                // 获取请求
-                using (HttpWebResponse response = request.GetResponse() as HttpWebResponse)
-                {
-                    // Get the response stream  
-                    StreamReader reader = new StreamReader(response.GetResponseStream());
-                    string responseStr = reader.ReadToEnd();
-
-                    WriteLog("SendTemplateSMS responseBody = " + responseStr);
-
-                    if (responseStr != null && responseStr.Length > 0)
-                    {
-                        Dictionary<string, object> responseResult = new Dictionary<string, object> { { "statusCode", "0" }, { "statusMsg", "成功" }, { "data", null } };
-
-                        if (m_bodyType == EBodyType.EType_XML)
-                        {
-                            XmlDocument resultXml = new XmlDocument();
-                            resultXml.LoadXml(responseStr);
-                            XmlNodeList nodeList = resultXml.SelectSingleNode("Response").ChildNodes;
-                            foreach (XmlNode item in nodeList)
-                            {
-                                if (item.Name == "statusCode")
-                                {
-                                    responseResult["statusCode"] = item.InnerText;
-                                }
-                                else if (item.Name == "statusMsg")
-                                {
-                                    responseResult["statusMsg"] = item.InnerText;
-                                }
-                                else if (item.Name == "TemplateSMS")
-                                {
-                                    Dictionary<string, object> retData = new Dictionary<string, object>();
-                                    foreach (XmlNode subItem in item.ChildNodes)
-                                    {
-                                        retData.Add(subItem.Name, subItem.InnerText);
-                                    }
-                                    responseResult["data"] = new Dictionary<string, object> { { item.Name, retData } };
-                                }
-                            }
-                        }
-                        else
-                        {
-                            responseResult.Clear();
-                            responseResult["resposeBody"] = responseStr;
-                        }
-                        
-                        return responseResult;
+                var response = client.PostAsJsonAsync(address, new { to, appId = m_appId, templateId, datas = data }).Result;
+                response.EnsureSuccessStatusCode();
+                string responseStr;
+                using (var s = response.Content.ReadAsStreamAsync().Result) {
+                    using (StreamReader reader = new StreamReader(s)) {
+                        responseStr = reader.ReadToEnd();
                     }
-                    return new Dictionary<string, object> { { "statusCode", 172002 }, { "statusMsg", "无返回" }, { "data", null } };
                 }
+
+                WriteLog("SendTemplateSMS responseBody = " + responseStr);
+
+                if (!string.IsNullOrEmpty(responseStr)) {
+                    Dictionary<string, object> responseResult = new Dictionary<string, object>
+                    {
+                        {"statusCode", "0"},
+                        {"statusMsg", "成功"},
+                        {"data", null}
+                    };
+
+                    if (m_bodyType == EBodyType.EType_XML) {
+                        throw new NotImplementedException();
+                    }
+                    else {
+                        responseResult.Clear();
+                        responseResult["resposeBody"] = responseStr;
+                    }
+
+                    return responseResult;
+                }
+                return new Dictionary<string, object> { { "statusCode", 172002 }, { "statusMsg", "无返回" }, { "data", null } };
             }
-            catch (Exception e)
-            {
+            catch (Exception e) {
 
                 throw e;
             }
@@ -1030,168 +842,144 @@ namespace CCPRestSDK
         /// <exception cref="ArgumentNullException">参数不能为空</exception>
         /// <exception cref="Exception"></exception>
         /// <returns>包体内容</returns>
-        public Dictionary<string, object> CallBack(string from, string to, string customerSerNum, string fromSerNum, string promptTone)
-        {
-            Dictionary<string, object> initError = paramCheckRest();
-            if (initError != null)
-            {
-                return initError;
-            }
+        public Dictionary<string, object> CallBack(string from, string to, string customerSerNum, string fromSerNum, string promptTone) {
+            throw new NotImplementedException();
+            //Dictionary<string, object> initError = paramCheckRest();
+            //if (initError != null) {
+            //    return initError;
+            //}
 
-            initError = paramCheckSunAccount();
-            if (initError != null)
-            {
-                return initError;
-            }
+            //initError = paramCheckSunAccount();
+            //if (initError != null) {
+            //    return initError;
+            //}
 
-            if (from == null)
-            {
-                throw new ArgumentNullException("from");
-            }
+            //if (from == null) {
+            //    throw new ArgumentNullException("from");
+            //}
 
-            if (to == null)
-            {
-                throw new ArgumentNullException("to");
-            }
+            //if (to == null) {
+            //    throw new ArgumentNullException("to");
+            //}
 
-            try
-            {
-                string date = DateTime.Now.ToString("yyyyMMddhhmmss");
+            //try {
+            //    string date = DateTime.Now.ToString("yyyyMMddhhmmss");
 
-                // 构建URL内容
-                string sigstr = MD5Encrypt(m_subAccount + m_subToken + date);
-                string uriStr = string.Format("https://{0}:{1}/{2}/SubAccounts/{3}/Calls/Callback?sig={4}", m_restAddress, m_restPort, softVer, m_subAccount, sigstr);
-                Uri address = new Uri(uriStr);
+            //    // 构建URL内容
+            //    string sigstr = MD5Encrypt(m_subAccount + m_subToken + date);
+            //    string uriStr = string.Format("https://{0}:{1}/{2}/SubAccounts/{3}/Calls/Callback?sig={4}", m_restAddress, m_restPort, softVer, m_subAccount, sigstr);
+            //    Uri address = new Uri(uriStr);
 
-                WriteLog("CallBack url = " + uriStr);
+            //    WriteLog("CallBack url = " + uriStr);
 
-                // 创建网络请求  
-                HttpWebRequest request = WebRequest.Create(address) as HttpWebRequest;
-                setCertificateValidationCallBack();
+            //    // 创建网络请求  
+            //    HttpWebRequest request = WebRequest.Create(address) as HttpWebRequest;
+            //    setCertificateValidationCallBack();
 
-                // 构建Head
-                request.Method = "POST";
+            //    // 构建Head
+            //    request.Method = "POST";
 
-                Encoding myEncoding = Encoding.GetEncoding("utf-8");
-                byte[] myByte = myEncoding.GetBytes(m_subAccount + ":" + date);
-                string authStr = Convert.ToBase64String(myByte);
-                request.Headers.Add("Authorization", authStr);
+            //    Encoding myEncoding = Encoding.GetEncoding("utf-8");
+            //    byte[] myByte = myEncoding.GetBytes(m_subAccount + ":" + date);
+            //    string authStr = Convert.ToBase64String(myByte);
+            //    request.Headers.Add("Authorization", authStr);
 
 
-                // 构建Body
-                StringBuilder data = new StringBuilder();
-                if (m_bodyType == EBodyType.EType_XML)
-                {
-                    request.Accept = "application/xml";
-                    request.ContentType = "application/xml;charset=utf-8";
+            //    // 构建Body
+            //    StringBuilder data = new StringBuilder();
+            //    if (m_bodyType == EBodyType.EType_XML) {
+            //        request.Accept = "application/xml";
+            //        request.ContentType = "application/xml;charset=utf-8";
 
-                    data.Append("<?xml version='1.0' encoding='utf-8'?><CallBack>");
-                    data.Append("<from>").Append(from).Append("</from>");
-                    data.Append("<to>").Append(to).Append("</to>");
-                    if (customerSerNum != null)
-                    {
-                        data.Append("<customerSerNum>").Append(customerSerNum).Append("</customerSerNum>");
-                    }
+            //        data.Append("<?xml version='1.0' encoding='utf-8'?><CallBack>");
+            //        data.Append("<from>").Append(from).Append("</from>");
+            //        data.Append("<to>").Append(to).Append("</to>");
+            //        if (customerSerNum != null) {
+            //            data.Append("<customerSerNum>").Append(customerSerNum).Append("</customerSerNum>");
+            //        }
 
-                    if (fromSerNum != null)
-                    {
-                        data.Append("<fromSerNum>").Append(fromSerNum).Append("</fromSerNum>");
-                    }
+            //        if (fromSerNum != null) {
+            //            data.Append("<fromSerNum>").Append(fromSerNum).Append("</fromSerNum>");
+            //        }
 
-                    if (promptTone != null)
-                    {
-                        data.Append("<promptTone>").Append(promptTone).Append("</promptTone>");
-                    }
+            //        if (promptTone != null) {
+            //            data.Append("<promptTone>").Append(promptTone).Append("</promptTone>");
+            //        }
 
-                    data.Append("</CallBack>");
-                }
-                else
-                {
-                    request.Accept = "application/json";
-                    request.ContentType = "application/json;charset=utf-8";
+            //        data.Append("</CallBack>");
+            //    }
+            //    else {
+            //        request.Accept = "application/json";
+            //        request.ContentType = "application/json;charset=utf-8";
 
-                    data.Append("{");
-                    data.Append("\"from\":\"").Append(from).Append("\"");
-                    data.Append(",\"to\":\"").Append(to).Append("\"");
-                    if (customerSerNum != null)
-                    {
-                        data.Append(",\"customerSerNum\":\"").Append(customerSerNum).Append("\"");
-                    }
-                    if (fromSerNum != null)
-                    {
-                        data.Append(",\"fromSerNum\":\"").Append(fromSerNum).Append("\"");
-                    }
-                    if (promptTone != null)
-                    {
-                        data.Append(",\"promptTone\":\"").Append(promptTone).Append("\"");
-                    }
-                    data.Append("}");
-                }
+            //        data.Append("{");
+            //        data.Append("\"from\":\"").Append(from).Append("\"");
+            //        data.Append(",\"to\":\"").Append(to).Append("\"");
+            //        if (customerSerNum != null) {
+            //            data.Append(",\"customerSerNum\":\"").Append(customerSerNum).Append("\"");
+            //        }
+            //        if (fromSerNum != null) {
+            //            data.Append(",\"fromSerNum\":\"").Append(fromSerNum).Append("\"");
+            //        }
+            //        if (promptTone != null) {
+            //            data.Append(",\"promptTone\":\"").Append(promptTone).Append("\"");
+            //        }
+            //        data.Append("}");
+            //    }
 
-                byte[] byteData = UTF8Encoding.UTF8.GetBytes(data.ToString());
+            //    byte[] byteData = UTF8Encoding.UTF8.GetBytes(data.ToString());
 
-                WriteLog("CallBack requestBody = " + data.ToString());
+            //    WriteLog("CallBack requestBody = " + data.ToString());
 
-                // 开始请求
-                using (Stream postStream = request.GetRequestStream())
-                {
-                    postStream.Write(byteData, 0, byteData.Length);
-                }
+            //    // 开始请求
+            //    using (Stream postStream = request.GetRequestStream()) {
+            //        postStream.Write(byteData, 0, byteData.Length);
+            //    }
 
-                // 获取请求
-                using (HttpWebResponse response = request.GetResponse() as HttpWebResponse)
-                {
-                    // Get the response stream  
-                    StreamReader reader = new StreamReader(response.GetResponseStream());
-                    string responseStr = reader.ReadToEnd();
+            //    // 获取请求
+            //    using (HttpWebResponse response = request.GetResponse() as HttpWebResponse) {
+            //        // Get the response stream  
+            //        StreamReader reader = new StreamReader(response.GetResponseStream());
+            //        string responseStr = reader.ReadToEnd();
 
-                    WriteLog("CallBack responseBody = " + responseStr);
+            //        WriteLog("CallBack responseBody = " + responseStr);
 
-                    if (responseStr != null && responseStr.Length > 0)
-                    {
-                        Dictionary<string, object> responseResult = new Dictionary<string, object> { { "statusCode", "0" }, { "statusMsg", "成功" }, { "data", null } };
+            //        if (responseStr != null && responseStr.Length > 0) {
+            //            Dictionary<string, object> responseResult = new Dictionary<string, object> { { "statusCode", "0" }, { "statusMsg", "成功" }, { "data", null } };
 
-                        if (m_bodyType == EBodyType.EType_XML)
-                        {
-                            XmlDocument resultXml = new XmlDocument();
-                            resultXml.LoadXml(responseStr);
-                            XmlNodeList nodeList = resultXml.SelectSingleNode("Response").ChildNodes;
-                            foreach (XmlNode item in nodeList)
-                            {
-                                if (item.Name == "statusCode")
-                                {
-                                    responseResult["statusCode"] = item.InnerText;
-                                }
-                                else if (item.Name == "statusMsg")
-                                {
-                                    responseResult["statusMsg"] = item.InnerText;
-                                }
-                                else if (item.Name == "CallBack")
-                                {
-                                    Dictionary<string, object> retData = new Dictionary<string, object>();
-                                    foreach (XmlNode subItem in item.ChildNodes)
-                                    {
-                                        retData.Add(subItem.Name, subItem.InnerText);
-                                    }
-                                    responseResult["data"] = new Dictionary<string, object> { { item.Name, retData } };
-                                }
-                            }
-                        }
-                        else
-                        {
-                            responseResult.Clear();
-                            responseResult["resposeBody"] = responseStr;
-                        }
-                        
-                        return responseResult;
-                    }
-                    return new Dictionary<string, object> { { "statusCode", 172002 }, { "statusMsg", "无返回" }, { "data", null } };
-                }
-            }
-            catch (Exception e)
-            {
-                throw e;
-            }
+            //            if (m_bodyType == EBodyType.EType_XML) {
+            //                XmlDocument resultXml = new XmlDocument();
+            //                resultXml.LoadXml(responseStr);
+            //                XmlNodeList nodeList = resultXml.SelectSingleNode("Response").ChildNodes;
+            //                foreach (XmlNode item in nodeList) {
+            //                    if (item.Name == "statusCode") {
+            //                        responseResult["statusCode"] = item.InnerText;
+            //                    }
+            //                    else if (item.Name == "statusMsg") {
+            //                        responseResult["statusMsg"] = item.InnerText;
+            //                    }
+            //                    else if (item.Name == "CallBack") {
+            //                        Dictionary<string, object> retData = new Dictionary<string, object>();
+            //                        foreach (XmlNode subItem in item.ChildNodes) {
+            //                            retData.Add(subItem.Name, subItem.InnerText);
+            //                        }
+            //                        responseResult["data"] = new Dictionary<string, object> { { item.Name, retData } };
+            //                    }
+            //                }
+            //            }
+            //            else {
+            //                responseResult.Clear();
+            //                responseResult["resposeBody"] = responseStr;
+            //            }
+
+            //            return responseResult;
+            //        }
+            //        return new Dictionary<string, object> { { "statusCode", 172002 }, { "statusMsg", "无返回" }, { "data", null } };
+            //    }
+            //}
+            //catch (Exception e) {
+            //    throw e;
+            //}
         }
 
         /// <summary>
@@ -1207,197 +995,168 @@ namespace CCPRestSDK
         /// <exception cref="ArgumentNullException">参数不能为空</exception>
         /// <exception cref="Exception"></exception>
         /// <returns></returns>
-        public Dictionary<string, object> LandingCall(string to, string mediaName, string mediaTxt, string displayNum, string playTimes, int type, string respUrl)
-        {
-            Dictionary<string, object> initError = paramCheckRest();
-            if (initError != null)
-            {
-                return initError;
-            }
-            initError = paramCheckMainAccount();
-            if (initError != null)
-            {
-                return initError;
-            }
-            initError = paramCheckAppId();
-            if (initError != null)
-            {
-                return initError;
-            }
+        public Dictionary<string, object> LandingCall(string to, string mediaName, string mediaTxt, string displayNum, string playTimes, int type, string respUrl) {
+            throw new NotImplementedException();
+            //Dictionary<string, object> initError = paramCheckRest();
+            //if (initError != null) {
+            //    return initError;
+            //}
+            //initError = paramCheckMainAccount();
+            //if (initError != null) {
+            //    return initError;
+            //}
+            //initError = paramCheckAppId();
+            //if (initError != null) {
+            //    return initError;
+            //}
 
-            if (to == null)
-            {
-                throw new ArgumentNullException("to");
-            }
+            //if (to == null) {
+            //    throw new ArgumentNullException("to");
+            //}
 
-            if (mediaName==null && mediaTxt==null)
-            {
-                throw new ArgumentNullException("mediaName和mediaTxt同时为null");
-            }
+            //if (mediaName == null && mediaTxt == null) {
+            //    throw new ArgumentNullException("mediaName和mediaTxt同时为null");
+            //}
 
-            try
-            {
-                string date = DateTime.Now.ToString("yyyyMMddhhmmss");
+            //try {
+            //    string date = DateTime.Now.ToString("yyyyMMddhhmmss");
 
-                // 构建URL内容
-                string sigstr = MD5Encrypt(m_mainAccount + m_mainToken + date);
-                string uriStr = string.Format("https://{0}:{1}/{2}/Accounts/{3}/Calls/LandingCalls?sig={4}", m_restAddress, m_restPort, softVer, m_mainAccount, sigstr);
-                Uri address = new Uri(uriStr);
+            //    // 构建URL内容
+            //    string sigstr = MD5Encrypt(m_mainAccount + m_mainToken + date);
+            //    string uriStr = string.Format("https://{0}:{1}/{2}/Accounts/{3}/Calls/LandingCalls?sig={4}", m_restAddress, m_restPort, softVer, m_mainAccount, sigstr);
+            //    Uri address = new Uri(uriStr);
 
-                WriteLog("LandingCall url = " + uriStr);
+            //    WriteLog("LandingCall url = " + uriStr);
 
-                // 创建网络请求  
-                HttpWebRequest request = WebRequest.Create(address) as HttpWebRequest;
-                setCertificateValidationCallBack();
+            //    // 创建网络请求  
+            //    HttpWebRequest request = WebRequest.Create(address) as HttpWebRequest;
+            //    setCertificateValidationCallBack();
 
-                // 构建Head
-                request.Method = "POST";
+            //    // 构建Head
+            //    request.Method = "POST";
 
-                Encoding myEncoding = Encoding.GetEncoding("utf-8");
-                byte[] myByte = myEncoding.GetBytes(m_mainAccount + ":" + date);
-                string authStr = Convert.ToBase64String(myByte);
-                request.Headers.Add("Authorization", authStr);
+            //    Encoding myEncoding = Encoding.GetEncoding("utf-8");
+            //    byte[] myByte = myEncoding.GetBytes(m_mainAccount + ":" + date);
+            //    string authStr = Convert.ToBase64String(myByte);
+            //    request.Headers.Add("Authorization", authStr);
 
 
-                // 构建Body
-                StringBuilder data = new StringBuilder();
-                if (m_bodyType == EBodyType.EType_XML)
-                {
-                    request.Accept = "application/xml";
-                    request.ContentType = "application/xml;charset=utf-8";
+            //    // 构建Body
+            //    StringBuilder data = new StringBuilder();
+            //    if (m_bodyType == EBodyType.EType_XML) {
+            //        request.Accept = "application/xml";
+            //        request.ContentType = "application/xml;charset=utf-8";
 
-                    data.Append("<?xml version='1.0' encoding='utf-8'?><LandingCall>");
-                    data.Append("<appId>").Append(m_appId).Append("</appId>");
-                    data.Append("<to>").Append(to).Append("</to>");
+            //        data.Append("<?xml version='1.0' encoding='utf-8'?><LandingCall>");
+            //        data.Append("<appId>").Append(m_appId).Append("</appId>");
+            //        data.Append("<to>").Append(to).Append("</to>");
 
-                    if (mediaName != null)
-                    {
-                        data.Append("<mediaName type=\""+type+"\">").Append(mediaName).Append("</mediaName>");
-                    }
+            //        if (mediaName != null) {
+            //            data.Append("<mediaName type=\"" + type + "\">").Append(mediaName).Append("</mediaName>");
+            //        }
 
-                    if (mediaTxt != null)
-                    {
-                        data.Append("<mediaTxt>").Append(mediaTxt).Append("</mediaTxt>");
-                    }
+            //        if (mediaTxt != null) {
+            //            data.Append("<mediaTxt>").Append(mediaTxt).Append("</mediaTxt>");
+            //        }
 
-                    if (displayNum!=null)
-                    {
-                        data.Append("<displayNum>").Append(displayNum).Append("</displayNum>");
-                    }
+            //        if (displayNum != null) {
+            //            data.Append("<displayNum>").Append(displayNum).Append("</displayNum>");
+            //        }
 
-                    if (playTimes!=null)
-                    {
-                        data.Append("<playTimes>").Append(playTimes).Append("</playTimes>");
-                    }
+            //        if (playTimes != null) {
+            //            data.Append("<playTimes>").Append(playTimes).Append("</playTimes>");
+            //        }
 
-                    if (respUrl!=null)
-                    {
-                        data.Append("<respUrl>").Append(respUrl).Append("</respUrl>");
-                    }
-                    
-                    data.Append("</LandingCall>");
+            //        if (respUrl != null) {
+            //            data.Append("<respUrl>").Append(respUrl).Append("</respUrl>");
+            //        }
 
-                }
-                else
-                {
-                    request.Accept = "application/json";
-                    request.ContentType = "application/json;charset=utf-8";
+            //        data.Append("</LandingCall>");
 
-                    data.Append("{");
-                    data.Append("\"to\":\"").Append(to).Append("\"");
-                    data.Append(",\"appId\":\"").Append(m_appId).Append("\"");
-                    if (mediaName != null)
-                    {
-                        data.Append(",\"mediaName\":\"").Append(mediaName).Append("\"");
-                        data.Append(",\"mediaNameType\":\"").Append(type).Append("\"");
-                    }
+            //    }
+            //    else {
+            //        request.Accept = "application/json";
+            //        request.ContentType = "application/json;charset=utf-8";
 
-                    if (mediaTxt != null)
-                    {
-                        data.Append(",\"mediaTxt\":\"").Append(mediaTxt).Append("\"");
-                    }
+            //        data.Append("{");
+            //        data.Append("\"to\":\"").Append(to).Append("\"");
+            //        data.Append(",\"appId\":\"").Append(m_appId).Append("\"");
+            //        if (mediaName != null) {
+            //            data.Append(",\"mediaName\":\"").Append(mediaName).Append("\"");
+            //            data.Append(",\"mediaNameType\":\"").Append(type).Append("\"");
+            //        }
 
-                    if (displayNum != null)
-                    {
-                        data.Append(",\"displayNum\":\"").Append(displayNum).Append("\"");
-                    }
+            //        if (mediaTxt != null) {
+            //            data.Append(",\"mediaTxt\":\"").Append(mediaTxt).Append("\"");
+            //        }
 
-                    if (playTimes != null)
-                    {
-                        data.Append(",\"playTimes\":\"").Append(playTimes).Append("\"");
-                    }
+            //        if (displayNum != null) {
+            //            data.Append(",\"displayNum\":\"").Append(displayNum).Append("\"");
+            //        }
 
-                    if (respUrl != null)
-                    {
-                        data.Append(",\"respUrl\":\"").Append(respUrl).Append("\"");
-                    }
+            //        if (playTimes != null) {
+            //            data.Append(",\"playTimes\":\"").Append(playTimes).Append("\"");
+            //        }
 
-                    data.Append("}");
-                }
-                byte[] byteData = UTF8Encoding.UTF8.GetBytes(data.ToString());
+            //        if (respUrl != null) {
+            //            data.Append(",\"respUrl\":\"").Append(respUrl).Append("\"");
+            //        }
 
-                WriteLog("LandingCall requestBody = " + data.ToString());
+            //        data.Append("}");
+            //    }
+            //    byte[] byteData = UTF8Encoding.UTF8.GetBytes(data.ToString());
 
-                // 开始请求
-                using (Stream postStream = request.GetRequestStream())
-                {
-                    postStream.Write(byteData, 0, byteData.Length);
-                }
+            //    WriteLog("LandingCall requestBody = " + data.ToString());
 
-                // 获取请求
-                using (HttpWebResponse response = request.GetResponse() as HttpWebResponse)
-                {
-                    // Get the response stream  
-                    StreamReader reader = new StreamReader(response.GetResponseStream());
-                    string responseStr = reader.ReadToEnd();
+            //    // 开始请求
+            //    using (Stream postStream = request.GetRequestStream()) {
+            //        postStream.Write(byteData, 0, byteData.Length);
+            //    }
 
-                    WriteLog("LandingCall responseBody = " + responseStr);
+            //    // 获取请求
+            //    using (HttpWebResponse response = request.GetResponse() as HttpWebResponse) {
+            //        // Get the response stream  
+            //        StreamReader reader = new StreamReader(response.GetResponseStream());
+            //        string responseStr = reader.ReadToEnd();
 
-                    if (responseStr != null && responseStr.Length > 0)
-                    {
-                        Dictionary<string, object> responseResult = new Dictionary<string, object> { { "statusCode", "0" }, { "statusMsg", "成功" }, { "data", null } };
+            //        WriteLog("LandingCall responseBody = " + responseStr);
 
-                        if (m_bodyType == EBodyType.EType_XML)
-                        {
-                            XmlDocument resultXml = new XmlDocument();
-                            resultXml.LoadXml(responseStr);
-                            XmlNodeList nodeList = resultXml.SelectSingleNode("Response").ChildNodes;
-                            foreach (XmlNode item in nodeList)
-                            {
-                                if (item.Name == "statusCode")
-                                {
-                                    responseResult["statusCode"] = item.InnerText;
-                                }
-                                else if (item.Name == "statusMsg")
-                                {
-                                    responseResult["statusMsg"] = item.InnerText;
-                                }
-                                else if (item.Name == "LandingCall")
-                                {
-                                    Dictionary<string, object> retData = new Dictionary<string, object>();
-                                    foreach (XmlNode subItem in item.ChildNodes)
-                                    {
-                                        retData.Add(subItem.Name, subItem.InnerText);
-                                    }
-                                    responseResult["data"] = new Dictionary<string, object> { { item.Name, retData } };
-                                }
-                            }
-                        }
-                        else
-                        {
-                            responseResult.Clear();
-                            responseResult["resposeBody"] = responseStr;
-                        }
-                        
-                        return responseResult;
-                    }
-                    return new Dictionary<string, object> { { "statusCode", 172002 }, { "statusMsg", "无返回" }, { "data", null } };
-                }
-            }
-            catch (Exception e)
-            {
-                throw e;
-            }
+            //        if (responseStr != null && responseStr.Length > 0) {
+            //            Dictionary<string, object> responseResult = new Dictionary<string, object> { { "statusCode", "0" }, { "statusMsg", "成功" }, { "data", null } };
+
+            //            if (m_bodyType == EBodyType.EType_XML) {
+            //                XmlDocument resultXml = new XmlDocument();
+            //                resultXml.LoadXml(responseStr);
+            //                XmlNodeList nodeList = resultXml.SelectSingleNode("Response").ChildNodes;
+            //                foreach (XmlNode item in nodeList) {
+            //                    if (item.Name == "statusCode") {
+            //                        responseResult["statusCode"] = item.InnerText;
+            //                    }
+            //                    else if (item.Name == "statusMsg") {
+            //                        responseResult["statusMsg"] = item.InnerText;
+            //                    }
+            //                    else if (item.Name == "LandingCall") {
+            //                        Dictionary<string, object> retData = new Dictionary<string, object>();
+            //                        foreach (XmlNode subItem in item.ChildNodes) {
+            //                            retData.Add(subItem.Name, subItem.InnerText);
+            //                        }
+            //                        responseResult["data"] = new Dictionary<string, object> { { item.Name, retData } };
+            //                    }
+            //                }
+            //            }
+            //            else {
+            //                responseResult.Clear();
+            //                responseResult["resposeBody"] = responseStr;
+            //            }
+
+            //            return responseResult;
+            //        }
+            //        return new Dictionary<string, object> { { "statusCode", 172002 }, { "statusMsg", "无返回" }, { "data", null } };
+            //    }
+            //}
+            //catch (Exception e) {
+            //    throw e;
+            //}
         }
 
         /// <summary>
@@ -1411,180 +1170,155 @@ namespace CCPRestSDK
         /// <exception cref="ArgumentNullException">参数不能为空</exception>
         /// <exception cref="Exception"></exception>
         /// <returns></returns>
-        public Dictionary<string, object> VoiceVerify(string to, string verifyCode, string displayNum, string playTimes, string respUrl)
-        {
-            Dictionary<string, object> initError = paramCheckRest();
-            if (initError != null)
-            {
-                return initError;
-            }
-            initError = paramCheckMainAccount();
-            if (initError != null)
-            {
-                return initError;
-            }
-            initError = paramCheckAppId();
-            if (initError != null)
-            {
-                return initError;
-            }
+        public Dictionary<string, object> VoiceVerify(string to, string verifyCode, string displayNum, string playTimes, string respUrl) {
+            throw new NotImplementedException();
+            //Dictionary<string, object> initError = paramCheckRest();
+            //if (initError != null) {
+            //    return initError;
+            //}
+            //initError = paramCheckMainAccount();
+            //if (initError != null) {
+            //    return initError;
+            //}
+            //initError = paramCheckAppId();
+            //if (initError != null) {
+            //    return initError;
+            //}
 
-            if (to == null)
-            {
-                throw new ArgumentNullException("to");
-            }
+            //if (to == null) {
+            //    throw new ArgumentNullException("to");
+            //}
 
-            if (verifyCode == null)
-            {
-                throw new ArgumentNullException("verifyCode");
-            }
+            //if (verifyCode == null) {
+            //    throw new ArgumentNullException("verifyCode");
+            //}
 
-            try
-            {
-                string date = DateTime.Now.ToString("yyyyMMddhhmmss");
+            //try {
+            //    string date = DateTime.Now.ToString("yyyyMMddhhmmss");
 
-                // 构建URL内容
-                string sigstr = MD5Encrypt(m_mainAccount + m_mainToken + date);
-                string uriStr = string.Format("https://{0}:{1}/{2}/Accounts/{3}/Calls/VoiceVerify?sig={4}", m_restAddress, m_restPort, softVer, m_mainAccount, sigstr);
-                Uri address = new Uri(uriStr);
+            //    // 构建URL内容
+            //    string sigstr = MD5Encrypt(m_mainAccount + m_mainToken + date);
+            //    string uriStr = string.Format("https://{0}:{1}/{2}/Accounts/{3}/Calls/VoiceVerify?sig={4}", m_restAddress, m_restPort, softVer, m_mainAccount, sigstr);
+            //    Uri address = new Uri(uriStr);
 
-                WriteLog("VoiceVerify url = " + uriStr);
+            //    WriteLog("VoiceVerify url = " + uriStr);
 
-                // 创建网络请求  
-                HttpWebRequest request = WebRequest.Create(address) as HttpWebRequest;
-                setCertificateValidationCallBack();
+            //    // 创建网络请求  
+            //    HttpWebRequest request = WebRequest.Create(address) as HttpWebRequest;
+            //    setCertificateValidationCallBack();
 
-                // 构建Head
-                request.Method = "POST";
+            //    // 构建Head
+            //    request.Method = "POST";
 
-                Encoding myEncoding = Encoding.GetEncoding("utf-8");
-                byte[] myByte = myEncoding.GetBytes(m_mainAccount + ":" + date);
-                string authStr = Convert.ToBase64String(myByte);
-                request.Headers.Add("Authorization", authStr);
+            //    Encoding myEncoding = Encoding.GetEncoding("utf-8");
+            //    byte[] myByte = myEncoding.GetBytes(m_mainAccount + ":" + date);
+            //    string authStr = Convert.ToBase64String(myByte);
+            //    request.Headers.Add("Authorization", authStr);
 
 
-                // 构建Body
-                StringBuilder data = new StringBuilder();
-                if (m_bodyType == EBodyType.EType_XML)
-                {
-                    request.Accept = "application/xml";
-                    request.ContentType = "application/xml;charset=utf-8";
+            //    // 构建Body
+            //    StringBuilder data = new StringBuilder();
+            //    if (m_bodyType == EBodyType.EType_XML) {
+            //        request.Accept = "application/xml";
+            //        request.ContentType = "application/xml;charset=utf-8";
 
-                    data.Append("<?xml version='1.0' encoding='utf-8'?><VoiceVerify>");
-                    data.Append("<appId>").Append(m_appId).Append("</appId>");
-                    data.Append("<verifyCode>").Append(verifyCode).Append("</verifyCode>");
-                    data.Append("<to>").Append(to).Append("</to>");
+            //        data.Append("<?xml version='1.0' encoding='utf-8'?><VoiceVerify>");
+            //        data.Append("<appId>").Append(m_appId).Append("</appId>");
+            //        data.Append("<verifyCode>").Append(verifyCode).Append("</verifyCode>");
+            //        data.Append("<to>").Append(to).Append("</to>");
 
-                    if (displayNum != null)
-                    {
-                        data.Append("<displayNum>").Append(displayNum).Append("</displayNum>");
-                    }
+            //        if (displayNum != null) {
+            //            data.Append("<displayNum>").Append(displayNum).Append("</displayNum>");
+            //        }
 
-                    if (playTimes != null)
-                    {
-                        data.Append("<playTimes>").Append(playTimes).Append("</playTimes>");
-                    }
+            //        if (playTimes != null) {
+            //            data.Append("<playTimes>").Append(playTimes).Append("</playTimes>");
+            //        }
 
-                    if (respUrl != null)
-                    {
-                        data.Append("<respUrl>").Append(respUrl).Append("</respUrl>");
-                    }
+            //        if (respUrl != null) {
+            //            data.Append("<respUrl>").Append(respUrl).Append("</respUrl>");
+            //        }
 
-                    data.Append("</VoiceVerify>");
-                }
-                else
-                {
-                    request.Accept = "application/json";
-                    request.ContentType = "application/json;charset=utf-8";
+            //        data.Append("</VoiceVerify>");
+            //    }
+            //    else {
+            //        request.Accept = "application/json";
+            //        request.ContentType = "application/json;charset=utf-8";
 
-                    data.Append("{");
-                    data.Append("\"to\":\"").Append(to).Append("\"");
-                    data.Append(",\"appId\":\"").Append(m_appId).Append("\"");
-                    data.Append(",\"verifyCode\":\"").Append(verifyCode).Append("\"");
+            //        data.Append("{");
+            //        data.Append("\"to\":\"").Append(to).Append("\"");
+            //        data.Append(",\"appId\":\"").Append(m_appId).Append("\"");
+            //        data.Append(",\"verifyCode\":\"").Append(verifyCode).Append("\"");
 
-                    if (displayNum != null)
-                    {
-                        data.Append(",\"displayNum\":\"").Append(displayNum).Append("\"");
-                    }
+            //        if (displayNum != null) {
+            //            data.Append(",\"displayNum\":\"").Append(displayNum).Append("\"");
+            //        }
 
-                    if (playTimes != null)
-                    {
-                        data.Append(",\"playTimes\":\"").Append(playTimes).Append("\"");
-                    }
+            //        if (playTimes != null) {
+            //            data.Append(",\"playTimes\":\"").Append(playTimes).Append("\"");
+            //        }
 
-                    if (respUrl != null)
-                    {
-                        data.Append(",\"respUrl\":\"").Append(respUrl).Append("\"");
-                    }
+            //        if (respUrl != null) {
+            //            data.Append(",\"respUrl\":\"").Append(respUrl).Append("\"");
+            //        }
 
-                    data.Append("}");
+            //        data.Append("}");
 
-                }
-                
-                byte[] byteData = UTF8Encoding.UTF8.GetBytes(data.ToString());
+            //    }
 
-                WriteLog("VoiceVerify requestBody = " + data.ToString());
+            //    byte[] byteData = UTF8Encoding.UTF8.GetBytes(data.ToString());
 
-                // 开始请求
-                using (Stream postStream = request.GetRequestStream())
-                {
-                    postStream.Write(byteData, 0, byteData.Length);
-                }
+            //    WriteLog("VoiceVerify requestBody = " + data.ToString());
 
-                // 获取请求
-                using (HttpWebResponse response = request.GetResponse() as HttpWebResponse)
-                {
-                    // Get the response stream  
-                    StreamReader reader = new StreamReader(response.GetResponseStream());
-                    string responseStr = reader.ReadToEnd();
+            //    // 开始请求
+            //    using (Stream postStream = request.GetRequestStream()) {
+            //        postStream.Write(byteData, 0, byteData.Length);
+            //    }
 
-                    WriteLog("VoiceVerify responseBody = " + responseStr);
+            //    // 获取请求
+            //    using (HttpWebResponse response = request.GetResponse() as HttpWebResponse) {
+            //        // Get the response stream  
+            //        StreamReader reader = new StreamReader(response.GetResponseStream());
+            //        string responseStr = reader.ReadToEnd();
 
-                    if (responseStr != null && responseStr.Length > 0)
-                    {
-                        Dictionary<string, object> responseResult = new Dictionary<string, object> { { "statusCode", "0" }, { "statusMsg", "成功" }, { "data", null } };
+            //        WriteLog("VoiceVerify responseBody = " + responseStr);
 
-                        if (m_bodyType == EBodyType.EType_XML)
-                        {
-                            XmlDocument resultXml = new XmlDocument();
-                            resultXml.LoadXml(responseStr);
-                            XmlNodeList nodeList = resultXml.SelectSingleNode("Response").ChildNodes;
-                            foreach (XmlNode item in nodeList)
-                            {
-                                if (item.Name == "statusCode")
-                                {
-                                    responseResult["statusCode"] = item.InnerText;
-                                }
-                                else if (item.Name == "statusMsg")
-                                {
-                                    responseResult["statusMsg"] = item.InnerText;
-                                }
-                                else if (item.Name == "VoiceVerify")
-                                {
-                                    Dictionary<string, object> retData = new Dictionary<string, object>();
-                                    foreach (XmlNode subItem in item.ChildNodes)
-                                    {
-                                        retData.Add(subItem.Name, subItem.InnerText);
-                                    }
-                                    responseResult["data"] = new Dictionary<string, object> { { item.Name, retData } };
-                                }
-                            }
-                        }
-                        else
-                        {
-                            responseResult.Clear();
-                            responseResult["resposeBody"] = responseStr;
-                        }
-                        
-                        return responseResult;
-                    }
-                    return new Dictionary<string, object> { { "statusCode", 172002 }, { "statusMsg", "无返回" }, { "data", null } };
-                }
-            }
-            catch (Exception e)
-            {
-                throw e;
-            }
+            //        if (responseStr != null && responseStr.Length > 0) {
+            //            Dictionary<string, object> responseResult = new Dictionary<string, object> { { "statusCode", "0" }, { "statusMsg", "成功" }, { "data", null } };
+
+            //            if (m_bodyType == EBodyType.EType_XML) {
+            //                XmlDocument resultXml = new XmlDocument();
+            //                resultXml.LoadXml(responseStr);
+            //                XmlNodeList nodeList = resultXml.SelectSingleNode("Response").ChildNodes;
+            //                foreach (XmlNode item in nodeList) {
+            //                    if (item.Name == "statusCode") {
+            //                        responseResult["statusCode"] = item.InnerText;
+            //                    }
+            //                    else if (item.Name == "statusMsg") {
+            //                        responseResult["statusMsg"] = item.InnerText;
+            //                    }
+            //                    else if (item.Name == "VoiceVerify") {
+            //                        Dictionary<string, object> retData = new Dictionary<string, object>();
+            //                        foreach (XmlNode subItem in item.ChildNodes) {
+            //                            retData.Add(subItem.Name, subItem.InnerText);
+            //                        }
+            //                        responseResult["data"] = new Dictionary<string, object> { { item.Name, retData } };
+            //                    }
+            //                }
+            //            }
+            //            else {
+            //                responseResult.Clear();
+            //                responseResult["resposeBody"] = responseStr;
+            //            }
+
+            //            return responseResult;
+            //        }
+            //        return new Dictionary<string, object> { { "statusCode", 172002 }, { "statusMsg", "无返回" }, { "data", null } };
+            //    }
+            //}
+            //catch (Exception e) {
+            //    throw e;
+            //}
         }
 
         /// <summary>
@@ -1596,130 +1330,114 @@ namespace CCPRestSDK
         /// <exception cref="ArgumentNullException">参数不能为空</exception>
         /// <exception cref="Exception"></exception>
         /// <returns></returns>
-        public Dictionary<string, object> IvrDial(string number, string userdata, string record)
-        {
-            Dictionary<string, object> initError = paramCheckRest();
-            if (initError != null)
-            {
-                return initError;
-            }
-            initError = paramCheckMainAccount();
-            if (initError != null)
-            {
-                return initError;
-            }
-            initError = paramCheckAppId();
-            if (initError != null)
-            {
-                return initError;
-            }
+        public Dictionary<string, object> IvrDial(string number, string userdata, string record) {
+            throw new NotImplementedException();
+            //Dictionary<string, object> initError = paramCheckRest();
+            //if (initError != null) {
+            //    return initError;
+            //}
+            //initError = paramCheckMainAccount();
+            //if (initError != null) {
+            //    return initError;
+            //}
+            //initError = paramCheckAppId();
+            //if (initError != null) {
+            //    return initError;
+            //}
 
-            if (number == null)
-            {
-                throw new ArgumentNullException("number");
-            }
+            //if (number == null) {
+            //    throw new ArgumentNullException("number");
+            //}
 
-            try
-            {
-                string date = DateTime.Now.ToString("yyyyMMddhhmmss");
+            //try {
+            //    string date = DateTime.Now.ToString("yyyyMMddhhmmss");
 
-                // 构建URL内容
-                string sigstr = MD5Encrypt(m_mainAccount + m_mainToken + date);
-                string uriStr = string.Format("https://{0}:{1}/{2}/Accounts/{3}/ivr/dial?sig={4}", m_restAddress, m_restPort, softVer, m_mainAccount, sigstr);
-                Uri address = new Uri(uriStr);
+            //    // 构建URL内容
+            //    string sigstr = MD5Encrypt(m_mainAccount + m_mainToken + date);
+            //    string uriStr = string.Format("https://{0}:{1}/{2}/Accounts/{3}/ivr/dial?sig={4}", m_restAddress, m_restPort, softVer, m_mainAccount, sigstr);
+            //    Uri address = new Uri(uriStr);
 
-                WriteLog("IvrDial url = " + uriStr);
+            //    WriteLog("IvrDial url = " + uriStr);
 
-                // 创建网络请求  
-                HttpWebRequest request = WebRequest.Create(address) as HttpWebRequest;
-                setCertificateValidationCallBack();
+            //    // 创建网络请求  
+            //    HttpWebRequest request = WebRequest.Create(address) as HttpWebRequest;
+            //    setCertificateValidationCallBack();
 
-                // 构建Head
-                request.Method = "POST";
-                request.Accept = "application/xml";
-                request.ContentType = "application/xml;charset=utf-8";
+            //    // 构建Head
+            //    request.Method = "POST";
+            //    request.Accept = "application/xml";
+            //    request.ContentType = "application/xml;charset=utf-8";
 
-                Encoding myEncoding = Encoding.GetEncoding("utf-8");
-                byte[] myByte = myEncoding.GetBytes(m_mainAccount + ":" + date);
-                string authStr = Convert.ToBase64String(myByte);
-                request.Headers.Add("Authorization", authStr);
+            //    Encoding myEncoding = Encoding.GetEncoding("utf-8");
+            //    byte[] myByte = myEncoding.GetBytes(m_mainAccount + ":" + date);
+            //    string authStr = Convert.ToBase64String(myByte);
+            //    request.Headers.Add("Authorization", authStr);
 
 
-                // 构建Body
-                StringBuilder data = new StringBuilder();
+            //    // 构建Body
+            //    StringBuilder data = new StringBuilder();
 
-                data.Append("<?xml version='1.0' encoding='utf-8'?><Request>");
-                data.Append("<Appid>").Append(m_appId).Append("</Appid>");
-                data.Append("<Dial ");
-                data.Append("number=\"" + number + "\"");
-                if (userdata != null)
-                {
-                    data.Append(" userdata=\"" + userdata + "\"");
-                }
+            //    data.Append("<?xml version='1.0' encoding='utf-8'?><Request>");
+            //    data.Append("<Appid>").Append(m_appId).Append("</Appid>");
+            //    data.Append("<Dial ");
+            //    data.Append("number=\"" + number + "\"");
+            //    if (userdata != null) {
+            //        data.Append(" userdata=\"" + userdata + "\"");
+            //    }
 
-                if (record != null && record=="true")
-                {
-                    data.Append(" record=\"true\"");
-                }
+            //    if (record != null && record == "true") {
+            //        data.Append(" record=\"true\"");
+            //    }
 
-                data.Append("></Dial>");
-                data.Append("</Request>");
+            //    data.Append("></Dial>");
+            //    data.Append("</Request>");
 
-                byte[] byteData = UTF8Encoding.UTF8.GetBytes(data.ToString());
+            //    byte[] byteData = UTF8Encoding.UTF8.GetBytes(data.ToString());
 
-                WriteLog("IvrDial requestBody = " + data.ToString());
+            //    WriteLog("IvrDial requestBody = " + data.ToString());
 
-                // 开始请求
-                using (Stream postStream = request.GetRequestStream())
-                {
-                    postStream.Write(byteData, 0, byteData.Length);
-                }
+            //    // 开始请求
+            //    using (Stream postStream = request.GetRequestStream()) {
+            //        postStream.Write(byteData, 0, byteData.Length);
+            //    }
 
-                // 获取请求
-                using (HttpWebResponse response = request.GetResponse() as HttpWebResponse)
-                {
-                    // Get the response stream  
-                    StreamReader reader = new StreamReader(response.GetResponseStream());
-                    string responseStr = reader.ReadToEnd();
+            //    // 获取请求
+            //    using (HttpWebResponse response = request.GetResponse() as HttpWebResponse) {
+            //        // Get the response stream  
+            //        StreamReader reader = new StreamReader(response.GetResponseStream());
+            //        string responseStr = reader.ReadToEnd();
 
-                    WriteLog("IvrDial responseBody = " + responseStr);
+            //        WriteLog("IvrDial responseBody = " + responseStr);
 
-                    if (responseStr != null && responseStr.Length > 0)
-                    {
-                        Dictionary<string, object> responseResult = new Dictionary<string, object> { { "statusCode", "0" }, { "statusMsg", "成功" }, { "data", null } };
+            //        if (responseStr != null && responseStr.Length > 0) {
+            //            Dictionary<string, object> responseResult = new Dictionary<string, object> { { "statusCode", "0" }, { "statusMsg", "成功" }, { "data", null } };
 
-                        if (m_bodyType == EBodyType.EType_XML)
-                        {
-                            XmlDocument resultXml = new XmlDocument();
-                            resultXml.LoadXml(responseStr);
-                            XmlNodeList nodeList = resultXml.SelectSingleNode("Response").ChildNodes;
-                            foreach (XmlNode item in nodeList)
-                            {
-                                if (item.Name == "statusCode")
-                                {
-                                    responseResult["statusCode"] = item.InnerText;
-                                }
-                                else if (item.Name == "statusMsg")
-                                {
-                                    responseResult["statusMsg"] = item.InnerText;
-                                }
-                            }
-                        }
-                        else
-                        {
-                            responseResult.Clear();
-                            responseResult["resposeBody"] = responseStr;
-                        }
-                        
-                        return responseResult;
-                    }
-                    return new Dictionary<string, object> { { "statusCode", 172002 }, { "statusMsg", "无返回" }, { "data", null } };
-                }
-            }
-            catch (Exception e)
-            {
-                throw e;
-            }
+            //            if (m_bodyType == EBodyType.EType_XML) {
+            //                XmlDocument resultXml = new XmlDocument();
+            //                resultXml.LoadXml(responseStr);
+            //                XmlNodeList nodeList = resultXml.SelectSingleNode("Response").ChildNodes;
+            //                foreach (XmlNode item in nodeList) {
+            //                    if (item.Name == "statusCode") {
+            //                        responseResult["statusCode"] = item.InnerText;
+            //                    }
+            //                    else if (item.Name == "statusMsg") {
+            //                        responseResult["statusMsg"] = item.InnerText;
+            //                    }
+            //                }
+            //            }
+            //            else {
+            //                responseResult.Clear();
+            //                responseResult["resposeBody"] = responseStr;
+            //            }
+
+            //            return responseResult;
+            //        }
+            //        return new Dictionary<string, object> { { "statusCode", 172002 }, { "statusMsg", "无返回" }, { "data", null } };
+            //    }
+            //}
+            //catch (Exception e) {
+            //    throw e;
+            //}
         }
 
         /// <summary>
@@ -1730,167 +1448,145 @@ namespace CCPRestSDK
         /// <exception cref="ArgumentNullException">参数不能为空</exception>
         /// <exception cref="Exception"></exception>
         /// <returns></returns>
-        public Dictionary<string, object> BillRecords(string date, string keywords)
-        {
-            Dictionary<string, object> initError = paramCheckRest();
-            if (initError != null)
-            {
-                return initError;
-            }
-            initError = paramCheckMainAccount();
-            if (initError != null)
-            {
-                return initError;
-            }
-            initError = paramCheckAppId();
-            if (initError != null)
-            {
-                return initError;
-            }
+        public Dictionary<string, object> BillRecords(string date, string keywords) {
+            throw new NotImplementedException();
+            //Dictionary<string, object> initError = paramCheckRest();
+            //if (initError != null) {
+            //    return initError;
+            //}
+            //initError = paramCheckMainAccount();
+            //if (initError != null) {
+            //    return initError;
+            //}
+            //initError = paramCheckAppId();
+            //if (initError != null) {
+            //    return initError;
+            //}
 
-            if (date == null)
-            {
-                throw new ArgumentNullException("date");
-            }
+            //if (date == null) {
+            //    throw new ArgumentNullException("date");
+            //}
 
-            try
-            {
-                string mydate = DateTime.Now.ToString("yyyyMMddhhmmss");
+            //try {
+            //    string mydate = DateTime.Now.ToString("yyyyMMddhhmmss");
 
-                // 构建URL内容
-                string sigstr = MD5Encrypt(m_mainAccount + m_mainToken + mydate);
-                string uriStr = string.Format("https://{0}:{1}/{2}/Accounts/{3}/BillRecords?sig={4}", m_restAddress, m_restPort, softVer, m_mainAccount, sigstr);
-                Uri address = new Uri(uriStr);
+            //    // 构建URL内容
+            //    string sigstr = MD5Encrypt(m_mainAccount + m_mainToken + mydate);
+            //    string uriStr = string.Format("https://{0}:{1}/{2}/Accounts/{3}/BillRecords?sig={4}", m_restAddress, m_restPort, softVer, m_mainAccount, sigstr);
+            //    Uri address = new Uri(uriStr);
 
-                WriteLog("BillRecords url = " + uriStr);
+            //    WriteLog("BillRecords url = " + uriStr);
 
-                // 创建网络请求  
-                HttpWebRequest request = WebRequest.Create(address) as HttpWebRequest;
-                setCertificateValidationCallBack();
+            //    // 创建网络请求  
+            //    HttpWebRequest request = WebRequest.Create(address) as HttpWebRequest;
+            //    setCertificateValidationCallBack();
 
-                // 构建Head
-                request.Method = "POST";
+            //    // 构建Head
+            //    request.Method = "POST";
 
-                Encoding myEncoding = Encoding.GetEncoding("utf-8");
-                byte[] myByte = myEncoding.GetBytes(m_mainAccount + ":" + mydate);
-                string authStr = Convert.ToBase64String(myByte);
-                request.Headers.Add("Authorization", authStr);
+            //    Encoding myEncoding = Encoding.GetEncoding("utf-8");
+            //    byte[] myByte = myEncoding.GetBytes(m_mainAccount + ":" + mydate);
+            //    string authStr = Convert.ToBase64String(myByte);
+            //    request.Headers.Add("Authorization", authStr);
 
 
-                // 构建Body
-                StringBuilder data = new StringBuilder();
-                if (m_bodyType == EBodyType.EType_XML)
-                {
-                    request.Accept = "application/xml";
-                    request.ContentType = "application/xml;charset=utf-8";
+            //    // 构建Body
+            //    StringBuilder data = new StringBuilder();
+            //    if (m_bodyType == EBodyType.EType_XML) {
+            //        request.Accept = "application/xml";
+            //        request.ContentType = "application/xml;charset=utf-8";
 
-                    data.Append("<?xml version='1.0' encoding='utf-8'?><BillRecords>");
-                    data.Append("<appId>").Append(m_appId).Append("</appId>");
-                    data.Append("<date>").Append(date).Append("</date>");
+            //        data.Append("<?xml version='1.0' encoding='utf-8'?><BillRecords>");
+            //        data.Append("<appId>").Append(m_appId).Append("</appId>");
+            //        data.Append("<date>").Append(date).Append("</date>");
 
-                    if (keywords != null)
-                    {
-                        data.Append("<keywords>").Append(keywords).Append("</keywords>");
-                    }
+            //        if (keywords != null) {
+            //            data.Append("<keywords>").Append(keywords).Append("</keywords>");
+            //        }
 
-                    data.Append("</BillRecords>");
-                }
-                else
-                {
-                    request.Accept = "application/json";
-                    request.ContentType = "application/json;charset=utf-8";
+            //        data.Append("</BillRecords>");
+            //    }
+            //    else {
+            //        request.Accept = "application/json";
+            //        request.ContentType = "application/json;charset=utf-8";
 
-                    data.Append("{");
-                    data.Append("\"appId\":\"").Append(m_appId).Append("\"");
-                    data.Append(",\"date\":\"").Append(date).Append("\"");
+            //        data.Append("{");
+            //        data.Append("\"appId\":\"").Append(m_appId).Append("\"");
+            //        data.Append(",\"date\":\"").Append(date).Append("\"");
 
-                    if (keywords != null)
-                    {
-                        data.Append(",\"keywords\":\"").Append(keywords).Append("\"");
-                    }
-                    data.Append("}");
+            //        if (keywords != null) {
+            //            data.Append(",\"keywords\":\"").Append(keywords).Append("\"");
+            //        }
+            //        data.Append("}");
 
-                }
+            //    }
 
-                byte[] byteData = UTF8Encoding.UTF8.GetBytes(data.ToString());
+            //    byte[] byteData = UTF8Encoding.UTF8.GetBytes(data.ToString());
 
-                WriteLog("BillRecords requestBody = " + data.ToString());
+            //    WriteLog("BillRecords requestBody = " + data.ToString());
 
-                // 开始请求
-                using (Stream postStream = request.GetRequestStream())
-                {
-                    postStream.Write(byteData, 0, byteData.Length);
-                }
+            //    // 开始请求
+            //    using (Stream postStream = request.GetRequestStream()) {
+            //        postStream.Write(byteData, 0, byteData.Length);
+            //    }
 
-                // 获取请求
-                using (HttpWebResponse response = request.GetResponse() as HttpWebResponse)
-                {
-                    // Get the response stream  
-                    StreamReader reader = new StreamReader(response.GetResponseStream());
-                    string responseStr = reader.ReadToEnd();
+            //    // 获取请求
+            //    using (HttpWebResponse response = request.GetResponse() as HttpWebResponse) {
+            //        // Get the response stream  
+            //        StreamReader reader = new StreamReader(response.GetResponseStream());
+            //        string responseStr = reader.ReadToEnd();
 
-                    WriteLog("BillRecords responseBody = " + responseStr);
+            //        WriteLog("BillRecords responseBody = " + responseStr);
 
-                    if (responseStr != null && responseStr.Length > 0)
-                    {
-                        Dictionary<string, object> responseResult = new Dictionary<string, object> { { "statusCode", "0" }, { "statusMsg", "成功" }, { "data", null } };
-                        Dictionary<string, object> retData = new Dictionary<string, object>();
+            //        if (responseStr != null && responseStr.Length > 0) {
+            //            Dictionary<string, object> responseResult = new Dictionary<string, object> { { "statusCode", "0" }, { "statusMsg", "成功" }, { "data", null } };
+            //            Dictionary<string, object> retData = new Dictionary<string, object>();
 
-                        if (m_bodyType == EBodyType.EType_XML)
-                        {
-                            XmlDocument resultXml = new XmlDocument();
-                            resultXml.LoadXml(responseStr);
-                            XmlNodeList nodeList = resultXml.SelectSingleNode("Response").ChildNodes;
-                            foreach (XmlNode item in nodeList)
-                            {
-                                if (item.Name == "statusCode")
-                                {
-                                    responseResult["statusCode"] = item.InnerText;
-                                }
-                                else if (item.Name == "statusMsg")
-                                {
-                                    responseResult["statusMsg"] = item.InnerText;
-                                }
-                                else
-                                {
-                                    retData.Add(item.Name, item.InnerText);
-                                }
-                            }
-                        }
-                        else
-                        {
-                            responseResult.Clear();
-                            responseResult["resposeBody"] = responseStr;
-                        }
-                        
-                        if (retData.Count > 0)
-                        {
-                            responseResult["data"] = retData;
-                        }
-                        return responseResult;
-                    }
-                    return new Dictionary<string, object> { { "statusCode", 172002 }, { "statusMsg", "无返回" }, { "data", null } };
-                }
-            }
-            catch (Exception e)
-            {
-                throw e;
-            }
+            //            if (m_bodyType == EBodyType.EType_XML) {
+            //                XmlDocument resultXml = new XmlDocument();
+            //                resultXml.LoadXml(responseStr);
+            //                XmlNodeList nodeList = resultXml.SelectSingleNode("Response").ChildNodes;
+            //                foreach (XmlNode item in nodeList) {
+            //                    if (item.Name == "statusCode") {
+            //                        responseResult["statusCode"] = item.InnerText;
+            //                    }
+            //                    else if (item.Name == "statusMsg") {
+            //                        responseResult["statusMsg"] = item.InnerText;
+            //                    }
+            //                    else {
+            //                        retData.Add(item.Name, item.InnerText);
+            //                    }
+            //                }
+            //            }
+            //            else {
+            //                responseResult.Clear();
+            //                responseResult["resposeBody"] = responseStr;
+            //            }
+
+            //            if (retData.Count > 0) {
+            //                responseResult["data"] = retData;
+            //            }
+            //            return responseResult;
+            //        }
+            //        return new Dictionary<string, object> { { "statusCode", 172002 }, { "statusMsg", "无返回" }, { "data", null } };
+            //    }
+            //}
+            //catch (Exception e) {
+            //    throw e;
+            //}
         }
 
 
         #region MD5 和 https交互函数定义
 
-        private void WriteLog(string log)
-        {
-            if (m_isWriteLog)
-            {
-                string strFilePath = GetLogPath();
-                System.IO.FileStream fs = new System.IO.FileStream(strFilePath, System.IO.FileMode.Append);
-                System.IO.StreamWriter sw = new System.IO.StreamWriter(fs, System.Text.Encoding.Default);
-                sw.WriteLine(DateTime.Now.ToString() + "\t" + log);
-                sw.Close();
-                fs.Close();
+        private void WriteLog(string log) {
+            Log?.Error(log);
+            if (m_isWriteLog) {
+                using (var fs = new FileStream(GetLogPath(), FileMode.Append)) {
+                    using (var sw = new StreamWriter(fs, Encoding.UTF8)) {
+                        sw.WriteLine($"{DateTime.Now}\t{log}");
+                    }
+                }
             }
         }
 
@@ -1898,24 +1594,20 @@ namespace CCPRestSDK
         /// 检查服务器地址信息
         /// </summary>
         /// <returns></returns>
-        private Dictionary<string, object> paramCheckRest()
-        {
+        private Dictionary<string, object> paramCheckRest() {
             int statusCode = 0;
             string statusMsg = null;
 
-            if (m_restAddress == null)
-            {
+            if (m_restAddress == null) {
                 statusCode = 172004;
                 statusMsg = "IP空";
             }
-            else if (m_restPort == null)
-            {
+            else if (m_restPort == null) {
                 statusCode = 172005;
                 statusMsg = "端口错误";
             }
 
-            if (statusCode != 0)
-            {
+            if (statusCode != 0) {
                 return new Dictionary<string, object> { { "statusCode", statusCode + "" }, { "statusMsg", statusMsg }, { "data", null } };
             }
 
@@ -1926,24 +1618,20 @@ namespace CCPRestSDK
         /// 检查主帐号信息
         /// </summary>
         /// <returns></returns>
-        private Dictionary<string, object> paramCheckMainAccount()
-        {
+        private Dictionary<string, object> paramCheckMainAccount() {
             int statusCode = 0;
             string statusMsg = null;
 
-            if (m_mainAccount == null)
-            {
+            if (m_mainAccount == null) {
                 statusCode = 172006;
                 statusMsg = "主帐号空";
             }
-            else if (m_mainToken == null)
-            {
+            else if (m_mainToken == null) {
                 statusCode = 172007;
                 statusMsg = "主帐号令牌空";
             }
 
-            if (statusCode != 0)
-            {
+            if (statusCode != 0) {
                 return new Dictionary<string, object> { { "statusCode", statusCode + "" }, { "statusMsg", statusMsg }, { "data", null } };
             }
 
@@ -1954,35 +1642,29 @@ namespace CCPRestSDK
         /// 检查子帐号信息
         /// </summary>
         /// <returns></returns>
-        private Dictionary<string, object> paramCheckSunAccount()
-        {
+        private Dictionary<string, object> paramCheckSunAccount() {
             int statusCode = 0;
             string statusMsg = null;
 
-            if (m_subAccount == null)
-            {
+            if (m_subAccount == null) {
                 statusCode = 172008;
                 statusMsg = "子帐号空";
             }
-            else if (m_subToken == null)
-            {
+            else if (m_subToken == null) {
                 statusCode = 172009;
                 statusMsg = "子帐号令牌空";
             }
-            else if (m_voipAccount == null)
-            {
+            else if (m_voipAccount == null) {
                 statusCode = 1720010;
                 statusMsg = "VoIP帐号空";
             }
-            else if (m_voipPwd == null)
-            {
+            else if (m_voipPwd == null) {
                 statusCode = 172011;
                 statusMsg = "VoIP密码空";
             }
 
-            if (statusCode != 0)
-            {
-                return new Dictionary<string, object> { { "statusCode", statusCode+"" }, { "statusMsg", statusMsg }, { "data", null } };
+            if (statusCode != 0) {
+                return new Dictionary<string, object> { { "statusCode", statusCode + "" }, { "statusMsg", statusMsg }, { "data", null } };
             }
 
             return null;
@@ -1992,10 +1674,8 @@ namespace CCPRestSDK
         /// 检查应用ID
         /// </summary>
         /// <returns></returns>
-        private Dictionary<string, object> paramCheckAppId()
-        {
-            if (m_appId == null)
-            {
+        private Dictionary<string, object> paramCheckAppId() {
+            if (m_appId == null) {
                 return new Dictionary<string, object> { { "statusCode", 172012 + "" }, { "statusMsg", "应用ID为空" }, { "data", null } };
             }
 
@@ -2008,21 +1688,19 @@ namespace CCPRestSDK
         /// </summary>
         /// <param name="source">原内容</param>
         /// <returns>加密后内容</returns>
-        public static string MD5Encrypt(string source)
-        {
+        public static string MD5Encrypt(string source) {
             // Create a new instance of the MD5CryptoServiceProvider object.
             System.Security.Cryptography.MD5 md5Hasher = System.Security.Cryptography.MD5.Create();
 
             // Convert the input string to a byte array and compute the hash.
-            byte[] data = md5Hasher.ComputeHash(Encoding.Default.GetBytes(source));
+            byte[] data = md5Hasher.ComputeHash(Encoding.UTF8.GetBytes(source));
 
             // Create a new Stringbuilder to collect the bytes and create a string.
             StringBuilder sBuilder = new StringBuilder();
 
             // Loop through each byte of the hashed data and format each one as a hexadecimal string.
-            for (int i = 0; i < data.Length; i++)
-            {
-                sBuilder.Append(data[i].ToString("X2"));
+            foreach (byte b in data) {
+                sBuilder.Append(b.ToString("X2"));
             }
 
             // Return the hexadecimal string.
@@ -2033,9 +1711,8 @@ namespace CCPRestSDK
         /// <summary>
         /// 设置服务器证书验证回调
         /// </summary>
-        public void setCertificateValidationCallBack()
-        {
-            System.Net.ServicePointManager.ServerCertificateValidationCallback = CertificateValidationResult;
+        public void setCertificateValidationCallBack() {
+            //System.Net.ServicePointManager.ServerCertificateValidationCallback = CertificateValidationResult;
         }
 
         /// <summary>
@@ -2046,8 +1723,7 @@ namespace CCPRestSDK
         /// <param name="chain"></param>
         /// <param name="error"></param>
         /// <returns></returns>
-        public bool CertificateValidationResult(object obj, System.Security.Cryptography.X509Certificates.X509Certificate cer, System.Security.Cryptography.X509Certificates.X509Chain chain, System.Net.Security.SslPolicyErrors error)
-        {
+        public bool CertificateValidationResult(object obj, System.Security.Cryptography.X509Certificates.X509Certificate cer, System.Security.Cryptography.X509Certificates.X509Chain chain, System.Net.Security.SslPolicyErrors error) {
             return true;
         }
         #endregion
