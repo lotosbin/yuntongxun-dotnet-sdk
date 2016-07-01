@@ -2617,7 +2617,7 @@
           "lib/netstandard1.1/xunit.runner.utility.dotnet.dll": {}
         }
       },
-      "CCPRestSDK/1.0.0": {
+      "CCPRestSDK/1.0.1": {
         "type": "project",
         "framework": ".NETStandard,Version=v1.6",
         "dependencies": {
@@ -7721,7 +7721,7 @@
         "xunit.runner.utility.nuspec"
       ]
     },
-    "CCPRestSDK/1.0.0": {
+    "CCPRestSDK/1.0.1": {
       "type": "project",
       "path": "../../SDK/CCPRestSDK/project.json",
       "msbuildProject": "../../SDK/CCPRestSDK/CCPRestSDK.xproj"

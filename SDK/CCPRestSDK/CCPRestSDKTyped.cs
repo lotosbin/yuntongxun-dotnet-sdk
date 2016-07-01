@@ -15,8 +15,13 @@ namespace com.cloopen.CCPRestSDK {
 
         public SendTemplateSMSResult SendTemplateSMS(string to, string templateId, string[] strings) {
             Dictionary<string, object> retData = _ccpRestSdk.SendTemplateSMS(to, templateId, strings);
-            var result = JsonConvert.DeserializeObject<SendTemplateSMSResult>((string)retData["responseBody"]);
-            return result;
+            if (retData.ContainsKey("responseBody")) {
+                return JsonConvert.DeserializeObject<SendTemplateSMSResult>((string)retData["responseBody"]);
+            }
+            return new SendTemplateSMSResult() {
+                statusCode = (string)retData["statusCode"],
+                statusMsg = (string)retData["statusMsg"]
+            };
         }
 
         [SuppressMessage("ReSharper", "InconsistentNaming")]
