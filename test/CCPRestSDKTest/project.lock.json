@@ -57,6 +57,19 @@
           }
         }
       },
+      "Love.Net.Http/1.0.0": {
+        "type": "package",
+        "dependencies": {
+          "NETStandard.Library": "1.6.0",
+          "Newtonsoft.Json": "9.0.1"
+        },
+        "compile": {
+          "lib/netstandard1.6/Love.Net.Http.dll": {}
+        },
+        "runtime": {
+          "lib/netstandard1.6/Love.Net.Http.dll": {}
+        }
+      },
       "Microsoft.CodeAnalysis.Analyzers/1.1.0": {
         "type": "package"
       },
@@ -745,19 +758,6 @@
         },
         "runtime": {
           "lib/netstandard1.0/NuGet.Versioning.dll": {}
-        }
-      },
-      "RigoFunc.Http/1.0.1": {
-        "type": "package",
-        "dependencies": {
-          "NETStandard.Library": "1.6.0",
-          "Newtonsoft.Json": "9.0.1"
-        },
-        "compile": {
-          "lib/netstandard1.5/RigoFunc.Http.dll": {}
-        },
-        "runtime": {
-          "lib/netstandard1.5/RigoFunc.Http.dll": {}
         }
       },
       "runtime.native.System/4.0.0": {
@@ -2617,12 +2617,12 @@
           "lib/netstandard1.1/xunit.runner.utility.dotnet.dll": {}
         }
       },
-      "CCPRestSDK/1.0.1": {
+      "CCPRestSDK/1.0.5": {
         "type": "project",
         "framework": ".NETStandard,Version=v1.6",
         "dependencies": {
+          "Love.Net.Http": "1.0.0",
           "NETStandard.Library": "1.6.0",
-          "RigoFunc.Http": "1.0.1",
           "System.Net.Requests": "4.0.11"
         },
         "compile": {
@@ -2666,6 +2666,17 @@
         "runtimes/win7-x64/native/libuv.dll",
         "runtimes/win7-x86/native/libuv.dll",
         "thirdpartynotices.txt"
+      ]
+    },
+    "Love.Net.Http/1.0.0": {
+      "sha512": "a0x1stBEwWqI0OzuT5Vzj0sPtEseuuewUsGyLhqx8GcNrbbO1jvXNkn7NncDgkgTL2IjPqtSPbEbbTOy0xSBjA==",
+      "type": "package",
+      "path": "Love.Net.Http/1.0.0",
+      "files": [
+        "Love.Net.Http.1.0.0.nupkg.sha512",
+        "Love.Net.Http.nuspec",
+        "lib/netstandard1.6/Love.Net.Http.dll",
+        "lib/netstandard1.6/Love.Net.Http.xml"
       ]
     },
     "Microsoft.CodeAnalysis.Analyzers/1.1.0": {
@@ -3303,17 +3314,6 @@
         "lib/net45/NuGet.Versioning.xml",
         "lib/netstandard1.0/NuGet.Versioning.dll",
         "lib/netstandard1.0/NuGet.Versioning.xml"
-      ]
-    },
-    "RigoFunc.Http/1.0.1": {
-      "sha512": "NQbSVyoAxKB04UvTg5Yt0Wt6CqxQQkHbA9DxcuWd2UBMsHSW3BxOl4QJPz/BIIxT7ydxbl8F85C6BXlZ5TXZfQ==",
-      "type": "package",
-      "path": "RigoFunc.Http/1.0.1",
-      "files": [
-        "RigoFunc.Http.1.0.1.nupkg.sha512",
-        "RigoFunc.Http.nuspec",
-        "lib/netstandard1.5/RigoFunc.Http.dll",
-        "lib/netstandard1.5/RigoFunc.Http.xml"
       ]
     },
     "runtime.native.System/4.0.0": {
@@ -7721,7 +7721,7 @@
         "xunit.runner.utility.nuspec"
       ]
     },
-    "CCPRestSDK/1.0.1": {
+    "CCPRestSDK/1.0.5": {
       "type": "project",
       "path": "../../SDK/CCPRestSDK/project.json",
       "msbuildProject": "../../SDK/CCPRestSDK/CCPRestSDK.xproj"
@@ -7729,7 +7729,7 @@
   },
   "projectFileDependencyGroups": {
     "": [
-      "CCPRestSDK >= 1.0.0-*",
+      "CCPRestSDK >= 1.0.*",
       "Microsoft.Extensions.Configuration >= 1.0.0",
       "Microsoft.Extensions.Configuration.FileExtensions >= 1.0.0",
       "Microsoft.Extensions.Configuration.Json >= 1.0.0",

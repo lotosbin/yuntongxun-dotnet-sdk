@@ -11,7 +11,7 @@
   },
 
   "dependencies": {
-    "CCPRestSDK": "1.0.0-*",
+    "CCPRestSDK": "1.0.*",
     "dotnet-test-xunit": "2.2.0-preview2-build1029",
     "Microsoft.Extensions.Configuration": "1.0.0",
     "Microsoft.Extensions.Configuration.FileExtensions": "1.0.0",
