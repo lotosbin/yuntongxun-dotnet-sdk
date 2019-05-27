@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2013
-VisualStudioVersion = 12.0.30501.0
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.28803.156
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Demo", "Demo", "{730A8C0F-FE85-4932-813A-687C81F05503}"
 EndProject
@@ -41,6 +41,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		README.md = README.md
 		README.txt = README.txt
 	EndProjectSection
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CCPRestSDK.NetCore", "CCPRestSDK.NetCore\CCPRestSDK.NetCore.csproj", "{B2769CF6-5355-4A3C-A1E8-6BAEF63A7FF7}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CCPRestSDK.NetCore.Console.Demo", "CCPRestSDK.NetCore.Console.Demo\CCPRestSDK.NetCore.Console.Demo.csproj", "{4E1455DF-6D16-4CC0-99A3-230A7A5A5996}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -92,6 +96,14 @@ Global
 		{21264A3E-F914-4ADE-B5F0-1C1D5BB21BC2}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{21264A3E-F914-4ADE-B5F0-1C1D5BB21BC2}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{21264A3E-F914-4ADE-B5F0-1C1D5BB21BC2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B2769CF6-5355-4A3C-A1E8-6BAEF63A7FF7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B2769CF6-5355-4A3C-A1E8-6BAEF63A7FF7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B2769CF6-5355-4A3C-A1E8-6BAEF63A7FF7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B2769CF6-5355-4A3C-A1E8-6BAEF63A7FF7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4E1455DF-6D16-4CC0-99A3-230A7A5A5996}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4E1455DF-6D16-4CC0-99A3-230A7A5A5996}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4E1455DF-6D16-4CC0-99A3-230A7A5A5996}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4E1455DF-6D16-4CC0-99A3-230A7A5A5996}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -108,5 +120,8 @@ Global
 		{2E178203-F4C5-403D-BECD-5E72ED289BC6} = {730A8C0F-FE85-4932-813A-687C81F05503}
 		{C71CE3BB-BFC1-4CFF-AD18-D4FAACE95BD0} = {730A8C0F-FE85-4932-813A-687C81F05503}
 		{21264A3E-F914-4ADE-B5F0-1C1D5BB21BC2} = {730A8C0F-FE85-4932-813A-687C81F05503}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {19E0E5DB-D712-4165-B55E-963353095ABA}
 	EndGlobalSection
 EndGlobal
